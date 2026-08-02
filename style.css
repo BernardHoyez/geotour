@@ -1,0 +1,101 @@
+:root {
+  --couleur-principale: #175e48;
+  --couleur-accent: #d66036;
+  --couleur-fond: #f4f6f5;
+  --couleur-texte: #1c1c1c;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--couleur-fond);
+  color: var(--couleur-texte);
+}
+
+#app-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  background: var(--couleur-principale);
+  color: #fff;
+}
+
+#app-header h1 {
+  margin: 0;
+  font-size: 1.1rem;
+  flex: 1;
+  text-align: center;
+}
+
+.header-btn {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+}
+
+#header-spacer { width: 2rem; }
+
+.screen {
+  display: none;
+  padding: 1rem;
+  min-height: calc(100vh - 3rem);
+}
+
+.screen.active { display: block; }
+
+.accueil-cartes {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 480px;
+  margin: 2rem auto;
+}
+
+.carte-mode {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 1.5rem 1rem;
+  background: #fff;
+  border: 2px solid var(--couleur-principale);
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.carte-icone { font-size: 2.2rem; }
+.carte-titre { font-size: 1.1rem; font-weight: 600; color: var(--couleur-principale); }
+.carte-desc { font-size: 0.85rem; color: #555; text-align: center; }
+
+.placeholder-migration {
+  max-width: 600px;
+  margin: 1.5rem auto;
+  padding: 1rem;
+  border: 1px dashed #999;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.action-principale, .action-secondaire {
+  display: block;
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 0.7rem;
+  border-radius: 8px;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.action-principale { background: var(--couleur-accent); color: #fff; }
+.action-secondaire { background: #eee; color: #333; }
+.action-principale:disabled, .action-secondaire:disabled { opacity: 0.5; cursor: not-allowed; }

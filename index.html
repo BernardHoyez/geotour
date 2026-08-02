@@ -1,1 +1,66 @@
-<h1>hello</h1>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>GeoTour</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#175e48">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header id="app-header">
+  <button id="btn-home" class="header-btn" title="Accueil" aria-label="Accueil">🏠</button>
+  <h1 id="app-title">GeoTour</h1>
+  <span id="header-spacer"></span>
+</header>
+
+<!-- Écran d'accueil -->
+<section id="screen-accueil" class="screen active">
+  <div class="accueil-cartes">
+    <button class="carte-mode" data-mode="creer">
+      <span class="carte-icone">📷</span>
+      <span class="carte-titre">Créer un waypoint</span>
+      <span class="carte-desc">À partir d'une photo géolocalisée, avec repli manuel si besoin</span>
+    </button>
+    <button class="carte-mode" data-mode="randonnee">
+      <span class="carte-icone">🥾</span>
+      <span class="carte-titre">Randonnée</span>
+      <span class="carte-desc">Importer un KMZ/KML/GPX, visualiser, gérer les waypoints</span>
+    </button>
+  </div>
+</section>
+
+<!-- Écran Créer (ex-photo2waypoint) -->
+<section id="screen-creer" class="screen">
+  <div class="placeholder-migration">
+    <p>Écran « Créer un waypoint » — à migrer depuis photo2waypoint.</p>
+    <p>Prévu ici : import photo, lecture EXIF, repli manuel (saisie / carte de pointage), aperçu du waypoint.</p>
+    <button id="btn-ajouter-a-randonnee" class="action-principale" disabled>
+      ➕ Ajouter à la randonnée en cours
+    </button>
+    <button id="btn-export-kmz-creer" class="action-secondaire" disabled>
+      💾 Exporter en KMZ
+    </button>
+  </div>
+</section>
+
+<!-- Écran Randonnée (ex-randonneur8) -->
+<section id="screen-randonnee" class="screen">
+  <div class="placeholder-migration">
+    <p>Écran « Randonnée » — à migrer depuis randonneur8.</p>
+    <p>Prévu ici : carte Leaflet (OSM / IGN Plan / IGN Ortho / mbtiles), import KMZ/KML/GPX, gestion des waypoints, profil altimétrique, mode Visite, exports.</p>
+  </div>
+</section>
+
+<script src="js/state.js"></script>
+<script src="js/map-layers.js"></script>
+<script src="js/kml.js"></script>
+<script src="js/exif.js"></script>
+<script src="js/mode-creer.js"></script>
+<script src="js/mode-randonnee.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
