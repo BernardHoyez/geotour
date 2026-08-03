@@ -9,12 +9,16 @@ function changerEcran(nomMode) {
   const titres = { accueil: 'GeoTour', creer: 'Créer un waypoint', randonnee: 'Randonnée' };
   document.getElementById('app-title').textContent = titres[nomMode] || 'GeoTour';
 
+  document.querySelectorAll('.onglet').forEach((onglet) => {
+    onglet.classList.toggle('actif', onglet.dataset.mode === nomMode);
+  });
+
   if (nomMode === 'randonnee' && typeof onEcranRandonneeAffiche === 'function') {
     onEcranRandonneeAffiche();
   }
 }
 
-document.querySelectorAll('.carte-mode').forEach((bouton) => {
+document.querySelectorAll('.carte-mode, .onglet').forEach((bouton) => {
   bouton.addEventListener('click', () => changerEcran(bouton.dataset.mode));
 });
 

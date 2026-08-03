@@ -1,6 +1,6 @@
 // Service worker "brise-cache" — geotour
 // Incrémenter CACHE_NAME à chaque livraison touchant un fichier statique.
-const CACHE_NAME = 'geotour-cache-v8';
+const CACHE_NAME = 'geotour-cache-v9';
 
 const PRECACHE_ASSETS = [
   './',

@@ -1,20 +1,22 @@
-// Mode "Randonnée" — migré de randonneur8.
-// Cette première étape couvre le socle : import KMZ/KML/GPX, carte
-// principale (fonds OSM/IGN Plan/IGN Ortho), affichage de la trace en
-// "marching ants", marqueurs de waypoints avec popup photo, liste des
-// waypoints synchronisée avec la carte.
-//
-// Restent à migrer dans une étape suivante : profil altimétrique D+/D-,
-// mode Visite (TTS), export diaporama HTML, export "Sauvegarder la session
-// en KMZ", export "Déploiement" (package zip).
+// Mode "Randonnée" — migré de randonneur8, avec son ergonomie : zone de
+// dépôt de fichier (glisser-déposer), choix explicite Remplacer/Ajouter,
+// fonds de carte en boutons segmentés, grille de statistiques à icônes
+// (Waypoints/Photos/Distance/D+/D-) recalculée automatiquement à l'import.
 
+const elZoneImport = document.getElementById('zone-import');
 const elInputImport = document.getElementById('input-import-trace');
-const elSelectFond = document.getElementById('select-fond-carte');
-const elStatsBar = document.getElementById('stats-bar');
+const elZoneImportNom = document.getElementById('zone-import-nom');
+const elBtnImportRemplacer = document.getElementById('btn-import-remplacer');
+const elBtnImportAjouter = document.getElementById('btn-import-ajouter');
+const elSegmentedFond = document.getElementById('segmented-fond');
 const elListeWaypoints = document.getElementById('liste-waypoints');
-const elBtnCalculerProfil = document.getElementById('btn-calculer-profil');
-const elProfilStats = document.getElementById('profil-stats');
+const elProfilErreur = document.getElementById('profil-erreur');
 const elProfilConteneur = document.getElementById('profil-conteneur');
+const elStatWaypoints = document.getElementById('stat-waypoints');
+const elStatPhotos = document.getElementById('stat-photos');
+const elStatDistance = document.getElementById('stat-distance');
+const elStatDPlus = document.getElementById('stat-dplus');
+const elStatDMoins = document.getElementById('stat-dmoins');
 const elBtnExportDiaporama = document.getElementById('btn-export-diaporama');
 const elBtnExportSessionKmz = document.getElementById('btn-export-session-kmz');
 const elBtnExportDeploiement = document.getElementById('btn-export-deploiement');
@@ -23,10 +25,12 @@ let carteRandonnee = null;
 let coucheTrace = null;
 let marqueursWaypoints = []; // [{ waypoint, marker }]
 let animationMarchingAntsId = null;
+let fichierEnAttente = null;
+let fondActuel = 'osm';
 
 function initCarteRandonneeSiBesoin() {
   if (carteRandonnee) return;
-  carteRandonnee = creerCarteBase('carte-randonnee', { fond: elSelectFond.value });
+  carteRandonnee = creerCarteBase('carte-randonnee', { fond: fondActuel });
 }
 
 /**
@@ -142,9 +146,12 @@ function rafraichirListeWaypoints() {
   });
 }
 
-function rafraichirStats() {
+function rafraichirStatsDeBase() {
   const nb = state.waypoints.length;
-  elStatsBar.textContent = nb > 0 ? `${nb} waypoint${nb > 1 ? 's' : ''}` : '';
+  const nbPhotos = state.waypoints.filter((wp) => wp.photoBlob).length;
+  elStatWaypoints.textContent = String(nb);
+  elStatPhotos.textContent = String(nbPhotos);
+
   const elBtnModeVisite = document.getElementById('btn-mode-visite');
   if (elBtnModeVisite) elBtnModeVisite.disabled = nb === 0;
   elBtnExportDiaporama.disabled = nb === 0;
@@ -152,39 +159,130 @@ function rafraichirStats() {
   elBtnExportDeploiement.disabled = nb === 0;
 }
 
+/**
+ * Calcule et affiche automatiquement le profil altimétrique (distance/D+/D-)
+ * après chaque import, sans action supplémentaire de l'utilisateur.
+ */
+async function rafraichirProfilAutomatique() {
+  elStatDistance.textContent = '—';
+  elStatDPlus.textContent = '—';
+  elStatDMoins.textContent = '—';
+  elProfilErreur.textContent = '';
+  elProfilConteneur.innerHTML = '';
+
+  if (state.trackCoords.length < 2) return;
+
+  try {
+    const { profil, dPlus, dMoins, distanceTotale } = await calculerProfilAltimetrique(state.trackCoords);
+    elStatDistance.textContent = (distanceTotale / 1000).toFixed(1) + ' km';
+    elStatDPlus.textContent = dPlus + ' m';
+    elStatDMoins.textContent = dMoins + ' m';
+    elProfilConteneur.innerHTML = construireSVGProfil(profil);
+  } catch (e) {
+    elProfilErreur.textContent = 'Profil altimétrique indisponible : ' + e.message;
+  }
+}
+
 function rafraichirAffichageComplet() {
   initCarteRandonneeSiBesoin();
   dessinerTrace();
   dessinerWaypoints();
   rafraichirListeWaypoints();
-  rafraichirStats();
+  rafraichirStatsDeBase();
   ajusterVueCarte();
+  rafraichirProfilAutomatique();
 }
 
-elSelectFond.addEventListener('change', () => {
-  if (!carteRandonnee) return;
-  changerFondDeCarte(carteRandonnee, elSelectFond.value);
+// ---------- Fonds de carte (boutons segmentés) ----------
+
+elSegmentedFond.querySelectorAll('.segment').forEach((bouton) => {
+  bouton.addEventListener('click', () => {
+    if (bouton.disabled) return;
+    fondActuel = bouton.dataset.fond;
+    elSegmentedFond.querySelectorAll('.segment').forEach((b) => b.classList.remove('actif'));
+    bouton.classList.add('actif');
+    if (carteRandonnee) changerFondDeCarte(carteRandonnee, fondActuel);
+  });
 });
 
-elBtnCalculerProfil.addEventListener('click', async () => {
-  if (state.trackCoords.length < 2) {
-    elProfilStats.textContent = 'Aucune trace continue à profiler (importez un KML/KMZ/GPX avec une trace).';
+// ---------- Import : zone de dépôt + Remplacer/Ajouter ----------
+
+function extensionAutorisee(nomFichier) {
+  return /\.(kmz|kml|gpx)$/i.test(nomFichier);
+}
+
+function selectionnerFichier(fichier) {
+  if (!fichier || !extensionAutorisee(fichier.name)) {
+    elZoneImportNom.textContent = 'Format non reconnu (KML/KMZ/GPX attendu).';
+    fichierEnAttente = null;
+    elBtnImportRemplacer.disabled = true;
+    elBtnImportAjouter.disabled = true;
     return;
   }
-  elBtnCalculerProfil.disabled = true;
-  elProfilStats.textContent = 'Calcul du profil altimétrique en cours…';
-  elProfilConteneur.innerHTML = '';
-  try {
-    const { profil, dPlus, dMoins, distanceTotale } = await calculerProfilAltimetrique(state.trackCoords);
-    elProfilConteneur.innerHTML = construireSVGProfil(profil);
-    elProfilStats.textContent =
-      `Distance : ${(distanceTotale / 1000).toFixed(1)} km — D+ : ${dPlus} m — D- : ${dMoins} m`;
-  } catch (e) {
-    elProfilStats.textContent = 'Erreur lors du calcul du profil : ' + e.message;
-  } finally {
-    elBtnCalculerProfil.disabled = false;
+  fichierEnAttente = fichier;
+  elZoneImportNom.textContent = fichier.name;
+  elBtnImportRemplacer.disabled = false;
+  elBtnImportAjouter.disabled = false;
+}
+
+elZoneImport.addEventListener('click', () => elInputImport.click());
+elZoneImport.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    elInputImport.click();
   }
 });
+
+elZoneImport.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  elZoneImport.classList.add('survol');
+});
+elZoneImport.addEventListener('dragleave', () => elZoneImport.classList.remove('survol'));
+elZoneImport.addEventListener('drop', (e) => {
+  e.preventDefault();
+  elZoneImport.classList.remove('survol');
+  selectionnerFichier(e.dataTransfer.files[0]);
+});
+
+elInputImport.addEventListener('change', () => selectionnerFichier(elInputImport.files[0]));
+
+async function parserFichierEnAttente() {
+  const extension = fichierEnAttente.name.split('.').pop().toLowerCase();
+  if (extension === 'kmz') return parseKMZ(fichierEnAttente);
+  if (extension === 'kml') return parseKML(await fichierEnAttente.text());
+  return parseGPX(await fichierEnAttente.text());
+}
+
+elBtnImportRemplacer.addEventListener('click', async () => {
+  if (!fichierEnAttente) return;
+  try {
+    const resultat = await parserFichierEnAttente();
+    state.waypoints = resultat.waypoints;
+    state.trackCoords = resultat.trackCoords;
+    if (typeof reinitialiserVisitePourNouvelleTrace === 'function') reinitialiserVisitePourNouvelleTrace();
+    rafraichirAffichageComplet();
+  } catch (e) {
+    elZoneImportNom.textContent = "Erreur à l'import : " + e.message;
+  }
+});
+
+elBtnImportAjouter.addEventListener('click', async () => {
+  if (!fichierEnAttente) return;
+  try {
+    const resultat = await parserFichierEnAttente();
+    state.waypoints = state.waypoints.concat(resultat.waypoints);
+    // La trace n'est remplacée que si aucune trace n'existait déjà : fusionner
+    // deux traces bout à bout produirait un trait aberrant reliant leurs deux
+    // extrémités, sans lien avec le terrain.
+    if (state.trackCoords.length < 2) state.trackCoords = resultat.trackCoords;
+    if (typeof reinitialiserVisitePourNouvelleTrace === 'function') reinitialiserVisitePourNouvelleTrace();
+    rafraichirAffichageComplet();
+  } catch (e) {
+    elZoneImportNom.textContent = "Erreur à l'import : " + e.message;
+  }
+});
+
+// ---------- Exports ----------
 
 async function lancerExport(bouton, libelleEnCours, fonctionExport) {
   const libelleInitial = bouton.textContent;
@@ -193,7 +291,7 @@ async function lancerExport(bouton, libelleEnCours, fonctionExport) {
   try {
     await fonctionExport();
   } catch (e) {
-    elStatsBar.textContent = "Erreur à l'export : " + e.message;
+    elProfilErreur.textContent = "Erreur à l'export : " + e.message;
   } finally {
     bouton.disabled = state.waypoints.length === 0;
     bouton.textContent = libelleInitial;
@@ -211,37 +309,6 @@ elBtnExportSessionKmz.addEventListener('click', () =>
 elBtnExportDeploiement.addEventListener('click', () =>
   lancerExport(elBtnExportDeploiement, 'Génération…', exporterDeploiement)
 );
-
-elInputImport.addEventListener('change', async () => {
-  const fichier = elInputImport.files[0];
-  if (!fichier) return;
-
-  const extension = fichier.name.split('.').pop().toLowerCase();
-  elStatsBar.textContent = 'Import en cours…';
-
-  try {
-    let resultat;
-    if (extension === 'kmz') {
-      resultat = await parseKMZ(fichier);
-    } else if (extension === 'kml') {
-      resultat = parseKML(await fichier.text());
-    } else if (extension === 'gpx') {
-      resultat = parseGPX(await fichier.text());
-    } else {
-      elStatsBar.textContent = 'Format non reconnu (KML/KMZ/GPX attendu).';
-      return;
-    }
-
-    state.waypoints = resultat.waypoints;
-    state.trackCoords = resultat.trackCoords;
-    elProfilStats.textContent = '';
-    elProfilConteneur.innerHTML = '';
-    if (typeof reinitialiserVisitePourNouvelleTrace === 'function') reinitialiserVisitePourNouvelleTrace();
-    rafraichirAffichageComplet();
-  } catch (e) {
-    elStatsBar.textContent = "Erreur à l'import : " + e.message;
-  }
-});
 
 /**
  * Appelé par changerEcran() (app.js) à chaque fois que l'écran Randonnée

@@ -26,7 +26,7 @@ let indexVisiteActuel = 0;
  */
 function initVisiteMap() {
   if (carteVisite) return;
-  carteVisite = creerCarteBase('carte-visite', { fond: elSelectFond ? elSelectFond.value : 'osm' });
+  carteVisite = creerCarteBase('carte-visite', { fond: typeof fondActuel !== 'undefined' ? fondActuel : 'osm' });
 
   if (state.trackCoords.length > 1) {
     coucheTraceVisite = L.polyline(state.trackCoords, { color: '#175e48', weight: 3 }).addTo(carteVisite);

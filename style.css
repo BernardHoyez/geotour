@@ -28,8 +28,29 @@ html, body {
 #app-header h1 {
   margin: 0;
   font-size: 1.1rem;
-  flex: 1;
-  text-align: center;
+}
+
+#onglets-principaux {
+  display: flex;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
+.onglet {
+  background: rgba(255, 255, 255, 0.12);
+  border: none;
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.7rem;
+  border-radius: 20px;
+  cursor: pointer;
+}
+
+.onglet.actif {
+  background: #fff;
+  color: var(--couleur-principale);
+  font-weight: 600;
 }
 
 .header-btn {
@@ -40,8 +61,6 @@ html, body {
   cursor: pointer;
   padding: 0.25rem 0.5rem;
 }
-
-#header-spacer { width: 2rem; }
 
 .screen {
   display: none;
@@ -171,26 +190,79 @@ html, body {
 
 .aide { font-size: 0.8rem; color: #666; }
 
-.barre-randonnee {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-  align-items: flex-end;
+.zone-import {
+  border: 2px dashed #b9c9c1;
+  border-radius: 10px;
+  background: #fff;
+  padding: 1.25rem 1rem;
+  text-align: center;
+  cursor: pointer;
   margin-bottom: 0.5rem;
+  transition: border-color 0.15s, background 0.15s;
 }
 
-.champ-inline {
-  flex-direction: row;
-  align-items: center;
-  gap: 0.5rem;
+.zone-import:hover, .zone-import:focus-visible {
+  border-color: var(--couleur-principale);
 }
 
-.champ-inline input, .champ-inline select {
-  font-family: inherit;
+.zone-import.survol {
+  border-color: var(--couleur-accent);
+  background: #fff8f4;
+}
+
+.zone-import-icone { font-size: 2rem; display: block; }
+
+.zone-import-texte {
+  margin: 0.4rem 0 0.2rem;
   font-size: 0.9rem;
-  padding: 0.35rem;
-  border: 1px solid #ccc;
-  border-radius: 6px;
+  color: #444;
+}
+
+.zone-import-nom {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--couleur-principale);
+}
+
+.barre-import-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.barre-import-actions button { flex: 1; }
+
+.segmented-fond {
+  display: flex;
+  border: 1px solid var(--couleur-principale);
+  border-radius: 20px;
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+}
+
+.segment {
+  flex: 1;
+  background: #fff;
+  border: none;
+  border-right: 1px solid var(--couleur-principale);
+  color: var(--couleur-principale);
+  font-family: inherit;
+  font-size: 0.8rem;
+  padding: 0.5rem 0.3rem;
+  cursor: pointer;
+}
+
+.segment:last-child { border-right: none; }
+
+.segment.actif {
+  background: var(--couleur-principale);
+  color: #fff;
+}
+
+.segment:disabled {
+  color: #aaa;
+  cursor: not-allowed;
 }
 
 #carte-randonnee {
@@ -199,6 +271,27 @@ html, body {
   border-radius: 8px;
   margin-bottom: 0.75rem;
 }
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 0.5rem 0.2rem;
+}
+
+.stat-icone { font-size: 1.1rem; }
+.stat-valeur { font-weight: 700; color: var(--couleur-principale); font-size: 0.95rem; }
+.stat-label { font-size: 0.65rem; color: #666; }
 
 .liste-waypoints {
   display: flex;
@@ -242,17 +335,15 @@ html, body {
   margin-bottom: 0.3rem;
 }
 
-.bloc-profil {
-  margin-bottom: 0.75rem;
-}
-
 #profil-conteneur svg {
   width: 100%;
   height: auto;
   background: #fff;
   border-radius: 8px;
   border: 1px solid #ddd;
+  margin-bottom: 0.75rem;
 }
+
 
 .barre-randonnee-actions {
   margin-top: 0.75rem;
