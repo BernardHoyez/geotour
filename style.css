@@ -157,6 +157,10 @@ html, body {
   margin-top: 0.5rem;
 }
 
+.repli-saisie[hidden] {
+  display: none;
+}
+
 .repli-saisie .champ { flex: 1; }
 
 #carte-pointage {
@@ -265,6 +269,10 @@ html, body {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+}
+
+.panneau-visite[hidden] {
+  display: none;
 }
 
 .visite-entete {
