@@ -8,6 +8,7 @@
 <meta name="theme-color" content="#175e48">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
 </head>
 <body>
 
@@ -35,9 +36,38 @@
 
 <!-- Écran Créer (ex-photo2waypoint) -->
 <section id="screen-creer" class="screen">
-  <div class="placeholder-migration">
-    <p>Écran « Créer un waypoint » — à migrer depuis photo2waypoint.</p>
-    <p>Prévu ici : import photo, lecture EXIF, repli manuel (saisie / carte de pointage), aperçu du waypoint.</p>
+  <div class="form-creer">
+    <label class="champ">
+      Photo (JPEG)
+      <input type="file" id="input-photo" accept="image/jpeg">
+    </label>
+
+    <div id="apercu-photo-conteneur"></div>
+    <p id="statut-gps" class="statut"></p>
+
+    <div id="repli-manuel" class="repli-manuel" hidden>
+      <p>Aucune coordonnée GPS trouvée dans la photo. Choisissez une méthode :</p>
+      <div class="choix-repli">
+        <button type="button" id="btn-repli-saisie" class="action-secondaire">Saisir les coordonnées</button>
+        <button type="button" id="btn-repli-carte" class="action-secondaire">Pointer sur la carte</button>
+      </div>
+      <div id="repli-saisie" hidden class="repli-saisie">
+        <label class="champ">Latitude <input type="number" step="any" id="input-lat"></label>
+        <label class="champ">Longitude <input type="number" step="any" id="input-lon"></label>
+      </div>
+      <div id="repli-carte" hidden>
+        <div id="carte-pointage"></div>
+        <p class="aide">Touchez la carte pour placer le point.</p>
+      </div>
+    </div>
+
+    <label class="champ">Nom (40 car. max)
+      <input type="text" id="input-nom" maxlength="40">
+    </label>
+    <label class="champ">Commentaire (600 car. max)
+      <textarea id="input-commentaire" maxlength="600" rows="4"></textarea>
+    </label>
+
     <button id="btn-ajouter-a-randonnee" class="action-principale" disabled>
       ➕ Ajouter à la randonnée en cours
     </button>
@@ -49,18 +79,70 @@
 
 <!-- Écran Randonnée (ex-randonneur8) -->
 <section id="screen-randonnee" class="screen">
-  <div class="placeholder-migration">
-    <p>Écran « Randonnée » — à migrer depuis randonneur8.</p>
-    <p>Prévu ici : carte Leaflet (OSM / IGN Plan / IGN Ortho / mbtiles), import KMZ/KML/GPX, gestion des waypoints, profil altimétrique, mode Visite, exports.</p>
+  <div class="barre-randonnee">
+    <label class="champ champ-inline">
+      Importer
+      <input type="file" id="input-import-trace" accept=".kml,.kmz,.gpx">
+    </label>
+    <label class="champ champ-inline">
+      Fond de carte
+      <select id="select-fond-carte">
+        <option value="osm">OSM</option>
+        <option value="ign-plan">IGN Plan</option>
+        <option value="ign-ortho">IGN Ortho</option>
+      </select>
+    </label>
+  </div>
+
+  <p id="stats-bar" class="statut"></p>
+
+  <div id="carte-randonnee"></div>
+
+  <div class="bloc-profil">
+    <button id="btn-calculer-profil" class="action-secondaire">📈 Calculer le profil altimétrique</button>
+    <p id="profil-stats" class="statut"></p>
+    <div id="profil-conteneur"></div>
+  </div>
+
+  <div id="liste-waypoints" class="liste-waypoints"></div>
+
+  <div class="barre-randonnee-actions">
+    <button id="btn-mode-visite" class="action-secondaire" disabled>🎙️ Mode Visite</button>
+    <button id="btn-export-diaporama" class="action-secondaire" disabled>🖥️ Diaporama HTML</button>
+    <button id="btn-export-session-kmz" class="action-secondaire" disabled>💾 Sauvegarder la session en KMZ</button>
+    <button id="btn-export-deploiement" class="action-secondaire" disabled>📦 Déploiement (zip)</button>
+  </div>
+
+  <div id="panneau-visite" class="panneau-visite" hidden>
+    <div class="visite-entete">
+      <button id="btn-visite-fermer" class="header-btn" aria-label="Fermer la visite">✕</button>
+      <span id="visite-compteur"></span>
+    </div>
+    <div id="carte-visite"></div>
+    <div class="visite-fiche">
+      <div id="visite-photo-conteneur"></div>
+      <h2 id="visite-nom"></h2>
+      <p id="visite-commentaire"></p>
+    </div>
+    <div class="visite-controles">
+      <button id="btn-visite-precedent" class="action-secondaire">◀ Précédent</button>
+      <button id="btn-visite-lire" class="action-principale">🔊 Lire</button>
+      <button id="btn-visite-suivant" class="action-secondaire">Suivant ▶</button>
+    </div>
   </div>
 </section>
 
+<script src="vendor/leaflet/leaflet.js"></script>
+<script src="vendor/jszip.min.js"></script>
 <script src="js/state.js"></script>
 <script src="js/map-layers.js"></script>
 <script src="js/kml.js"></script>
+<script src="js/export.js"></script>
+<script src="js/altimetrie.js"></script>
 <script src="js/exif.js"></script>
 <script src="js/mode-creer.js"></script>
 <script src="js/mode-randonnee.js"></script>
+<script src="js/visite.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

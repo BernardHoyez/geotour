@@ -99,3 +99,219 @@ html, body {
 .action-principale { background: var(--couleur-accent); color: #fff; }
 .action-secondaire { background: #eee; color: #333; }
 .action-principale:disabled, .action-secondaire:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.form-creer {
+  max-width: 520px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.champ {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.champ input, .champ textarea {
+  font-family: inherit;
+  font-size: 1rem;
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+#apercu-photo-conteneur img {
+  max-width: 100%;
+  border-radius: 8px;
+  margin-top: 0.3rem;
+}
+
+.statut {
+  font-size: 0.9rem;
+  color: var(--couleur-principale);
+  min-height: 1.2em;
+}
+
+.repli-manuel {
+  border: 1px solid #e0a45a;
+  background: #fff8ef;
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.choix-repli {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.choix-repli button { flex: 1; }
+
+.repli-saisie {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.repli-saisie .champ { flex: 1; }
+
+#carte-pointage {
+  height: 280px;
+  border-radius: 8px;
+  margin-top: 0.5rem;
+}
+
+.aide { font-size: 0.8rem; color: #666; }
+
+.barre-randonnee {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  margin-bottom: 0.5rem;
+}
+
+.champ-inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.champ-inline input, .champ-inline select {
+  font-family: inherit;
+  font-size: 0.9rem;
+  padding: 0.35rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+#carte-randonnee {
+  height: 50vh;
+  min-height: 300px;
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+}
+
+.liste-waypoints {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.item-waypoint {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+}
+
+.item-waypoint img {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.item-waypoint .item-texte { flex: 1; min-width: 0; }
+.item-waypoint .item-nom { font-weight: 600; color: var(--couleur-principale); }
+.item-waypoint .item-commentaire {
+  font-size: 0.85rem;
+  color: #555;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.popup-waypoint img {
+  max-width: 180px;
+  border-radius: 6px;
+  display: block;
+  margin-bottom: 0.3rem;
+}
+
+.bloc-profil {
+  margin-bottom: 0.75rem;
+}
+
+#profil-conteneur svg {
+  width: 100%;
+  height: auto;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+}
+
+.barre-randonnee-actions {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.panneau-visite {
+  position: fixed;
+  inset: 0;
+  background: var(--couleur-fond);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.visite-entete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  background: var(--couleur-principale);
+  color: #fff;
+}
+
+.visite-entete .header-btn { color: #fff; font-size: 1.3rem; }
+
+#carte-visite {
+  height: 40vh;
+  min-height: 220px;
+}
+
+.visite-fiche {
+  padding: 1rem;
+  max-width: 520px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+#visite-photo-conteneur img {
+  width: 100%;
+  max-height: 260px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+}
+
+#visite-nom { margin: 0.3rem 0; color: var(--couleur-principale); }
+#visite-commentaire { white-space: pre-wrap; }
+
+.visite-controles {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  max-width: 520px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.visite-controles button { flex: 1; }
+
+.marqueur-visite-actuel {
+  filter: hue-rotate(140deg) saturate(1.5);
+}

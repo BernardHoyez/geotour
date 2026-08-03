@@ -1,6 +1,6 @@
 // Service worker "brise-cache" — geotour
 // Incrémenter CACHE_NAME à chaque livraison touchant un fichier statique.
-const CACHE_NAME = 'geotour-cache-v1';
+const CACHE_NAME = 'geotour-cache-v7';
 
 const PRECACHE_ASSETS = [
   './',
@@ -11,9 +11,20 @@ const PRECACHE_ASSETS = [
   './js/state.js',
   './js/mode-creer.js',
   './js/mode-randonnee.js',
+  './js/visite.js',
+  './js/export.js',
   './js/kml.js',
+  './js/altimetrie.js',
   './js/map-layers.js',
   './js/exif.js',
+  './vendor/jszip.min.js',
+  './vendor/leaflet/leaflet.js',
+  './vendor/leaflet/leaflet.css',
+  './vendor/leaflet/images/marker-icon.png',
+  './vendor/leaflet/images/marker-icon-2x.png',
+  './vendor/leaflet/images/marker-shadow.png',
+  './vendor/leaflet/images/layers.png',
+  './vendor/leaflet/images/layers-2x.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-maskable-192.png',
