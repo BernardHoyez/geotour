@@ -1,80 +1,59 @@
-// Service worker "brise-cache" — geotour
-// Incrémenter CACHE_NAME à chaque livraison touchant un fichier statique.
-const CACHE_NAME = 'geotour-cache-v9';
+const VERSION = 'geotour-v1';
+const SCOPE   = '/geotour/';
 
-const PRECACHE_ASSETS = [
-  './',
-  './index.html',
-  './style.css',
-  './manifest.json',
-  './js/app.js',
-  './js/state.js',
-  './js/mode-creer.js',
-  './js/mode-randonnee.js',
-  './js/visite.js',
-  './js/export.js',
-  './js/kml.js',
-  './js/altimetrie.js',
-  './js/map-layers.js',
-  './js/exif.js',
-  './vendor/jszip.min.js',
-  './vendor/leaflet/leaflet.js',
-  './vendor/leaflet/leaflet.css',
-  './vendor/leaflet/images/marker-icon.png',
-  './vendor/leaflet/images/marker-icon-2x.png',
-  './vendor/leaflet/images/marker-shadow.png',
-  './vendor/leaflet/images/layers.png',
-  './vendor/leaflet/images/layers-2x.png',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/icon-maskable-192.png',
-  './icons/icon-maskable-512.png'
-];
+self.addEventListener('install', () => self.skipWaiting());
 
-self.addEventListener('install', (event) => {
-  self.skipWaiting();
+self.addEventListener('activate', event => {
+  // Supprimer TOUS les caches sans exception (brise-caches)
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_ASSETS))
+    caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))))
   );
+  self.clients.claim();
 });
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    Promise.all([
-      clients.claim(),
-      caches.keys().then((keys) =>
-        Promise.all(
-          keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
-        )
-      )
-    ])
-  );
-});
+self.addEventListener('fetch', event => {
+  const url = new URL(event.request.url);
 
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
+  // Share Target POST
+  if (event.request.method === 'POST' && url.pathname === SCOPE + 'share-target') {
+    event.respondWith((async () => {
+      const fd = await event.request.formData();
+      const file = fd.get('file');
+      if (file) {
+        const cache = await caches.open(VERSION + '-share');
+        await cache.put('/_shared_file_name', new Response(file.name));
+        await cache.put('/_shared_file', new Response(file));
+      }
+      return Response.redirect(SCOPE, 303);
+    })());
+    return;
+  }
 
-  // Network-first pour les fichiers de l'app (HTML/JS/CSS/manifest)
-  const isAppShell =
-    request.mode === 'navigate' ||
-    PRECACHE_ASSETS.some((asset) => url.pathname.endsWith(asset.replace('./', '/')));
+  if (event.request.method !== 'GET') return;
 
-  if (isAppShell) {
+  const externe = ['tile.openstreetmap.org','data.geopf.fr','unpkg.com',
+                   'cdnjs.cloudflare.com','fonts.googleapis.com','fonts.gstatic.com'];
+  if (externe.some(h => url.hostname.includes(h))) return;
+
+  // index.html, sw.js, manifest : toujours depuis le réseau (jamais en cache)
+  if ([SCOPE, SCOPE+'index.html', SCOPE+'manifest.json', SCOPE+'sw.js']
+      .includes(url.pathname)) {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          return response;
-        })
-        .catch(() => caches.match(request))
+      fetch(event.request, { cache: 'no-store' })
+        .catch(() => caches.match(event.request))
     );
     return;
   }
 
-  // Cache-first pour le reste (tuiles IGN/OSM, bibliothèques vendorisées, mbtiles, etc.)
-  event.respondWith(
-    caches.match(request).then((cached) => cached || fetch(request))
-  );
+  // Autres ressources (icônes…) : network-first avec cache
+  event.respondWith((async () => {
+    try {
+      const res = await fetch(event.request);
+      if (res.ok) (await caches.open(VERSION)).put(event.request, res.clone());
+      return res;
+    } catch {
+      return (await caches.match(event.request)) ||
+        new Response('Hors ligne', { status: 503 });
+    }
+  })());
 });

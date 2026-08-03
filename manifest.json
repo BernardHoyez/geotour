@@ -1,37 +1,25 @@
 {
+  "id": "/geotour",
   "name": "GeoTour",
   "short_name": "GeoTour",
-  "description": "Créer des waypoints géolocalisés et les intégrer à vos randonnées (KMZ/KML/GPX)",
-  "start_url": "./index.html",
-  "scope": "./",
+  "description": "Editeur de randonnees KMZ/KML/GPX avec trace anime, fonds de carte MBtiles et creation de waypoints depuis une photo geolocalisee",
+  "start_url": "/geotour/",
+  "scope": "/geotour/",
   "display": "standalone",
-  "background_color": "#175e48",
-  "theme_color": "#175e48",
+  "background_color": "#0d1a09",
+  "theme_color": "#1a3a0f",
   "orientation": "any",
+  "lang": "fr",
   "icons": [
-    {
-      "src": "icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "icons/icon-maskable-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "icons/icon-maskable-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    }
-  ]
+    { "src": "icons/icon-192.png",          "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png",          "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-192-maskable.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "share_target": {
+    "action": "/geotour/share-target",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": { "files": [{ "name": "file", "accept": ["application/vnd.google-earth.kmz","application/vnd.google-earth.kml+xml","application/gpx+xml","application/octet-stream"] }] }
+  }
 }

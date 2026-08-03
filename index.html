@@ -2,155 +2,2913 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1a3a0f">
 <title>GeoTour</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#175e48">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
-<link rel="stylesheet" href="style.css">
-<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root {
+  --forest: #1a3a0f; --moss: #2d5a1b; --fern: #4a7c35; --sage: #7aad5a;
+  --mist: #b8d4a0; --cream: #f0ebe0; --bark: #5c3d1e; --stone: #8a8070;
+  --ink: #0d1a09; --snow: #f8f5ee; --alert: #c84b1a;
+  --panel-bg: #111f0a; --sidebar-w: 340px; --header-h: 58px;
+  --radius: 8px; --transition: 0.22s cubic-bezier(.4,0,.2,1);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; font-family: 'Outfit', sans-serif; background: var(--ink); color: var(--cream); }
+
+#header {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 1000; height: var(--header-h);
+  background: linear-gradient(135deg, var(--forest), #0d2208);
+  border-bottom: 1px solid var(--moss); display: flex; align-items: center;
+  box-shadow: 0 2px 20px rgba(0,0,0,.5);
+}
+#logo {
+  display: flex; align-items: center; gap: 10px; padding: 0 20px;
+  font-family: 'Space Mono', monospace; font-size: 1.3rem; font-weight: 700;
+  color: var(--sage); letter-spacing: .08em; flex-shrink: 0;
+}
+#tab-bar { display: flex; height: 100%; flex: 1; border-left: 1px solid rgba(255,255,255,.07); }
+.tab-btn {
+  display: flex; align-items: center; gap: 8px; padding: 0 24px;
+  font-size: .88rem; font-weight: 500; color: var(--stone);
+  cursor: pointer; border: none; background: none;
+  border-bottom: 3px solid transparent; transition: var(--transition);
+}
+.tab-btn:hover { color: var(--mist); background: rgba(255,255,255,.04); }
+.tab-btn.active { color: var(--sage); border-bottom-color: var(--sage); background: rgba(74,124,53,.08); }
+
+#app { position: fixed; top: var(--header-h); left: 0; right: 0; bottom: 0; display: flex; }
+.panel { display: none; width: 100%; height: 100%; }
+.panel.active { display: flex; }
+#editor-panel { flex-direction: row; }
+
+#sidebar {
+  width: var(--sidebar-w); flex-shrink: 0; background: var(--panel-bg);
+  border-right: 1px solid rgba(255,255,255,.06);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+#sidebar-header { padding: 14px 16px 10px; border-bottom: 1px solid rgba(255,255,255,.06); background: rgba(0,0,0,.2); }
+#sidebar-header h3 { font-size: .78rem; text-transform: uppercase; letter-spacing: .12em; color: var(--stone); margin-bottom: 8px; }
+
+#file-drop-zone {
+  border: 2px dashed var(--moss); border-radius: var(--radius);
+  padding: 18px 12px; text-align: center; cursor: pointer;
+  transition: var(--transition); background: rgba(45,90,27,.06);
+}
+#file-drop-zone:hover, #file-drop-zone.drag-over { border-color: var(--sage); background: rgba(74,124,53,.12); }
+#file-drop-zone input { display: none; }
+#file-drop-zone .drop-icon { font-size: 1.8rem; margin-bottom: 4px; }
+#file-drop-zone p { font-size: .78rem; color: var(--stone); line-height: 1.4; }
+#file-drop-zone p strong { color: var(--sage); }
+#file-name-display { margin-top: 6px; font-size: .72rem; color: var(--mist); font-family: 'Space Mono', monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+#map-controls { padding: 10px 16px; border-bottom: 1px solid rgba(255,255,255,.06); display: flex; gap: 6px; }
+.map-btn {
+  flex: 1; padding: 6px 8px; font-size: .72rem; font-weight: 500;
+  border: 1px solid rgba(255,255,255,.1); border-radius: 5px;
+  background: rgba(255,255,255,.04); color: var(--stone); cursor: pointer; transition: var(--transition);
+}
+.map-btn:hover { color: var(--cream); border-color: var(--fern); }
+.map-btn.active { background: var(--moss); color: var(--snow); border-color: var(--sage); }
+.mode-btn {
+  flex: 1; padding: 6px 8px; font-size: .72rem; font-weight: 500;
+  border: 1px solid rgba(255,255,255,.1); border-radius: 5px;
+  background: rgba(255,255,255,.04); color: var(--stone); cursor: pointer; transition: var(--transition);
+}
+.mode-btn:hover { color: var(--cream); border-color: var(--fern); }
+.mode-btn.active { background: var(--moss); color: var(--snow); border-color: var(--sage); }
+
+#waypoints-list { flex: 1; overflow-y: auto; padding: 8px; }
+#waypoints-list::-webkit-scrollbar { width: 4px; }
+#waypoints-list::-webkit-scrollbar-thumb { background: var(--moss); border-radius: 2px; }
+
+.wp-card {
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.07);
+  border-radius: var(--radius); margin-bottom: 6px; overflow: hidden; cursor: pointer;
+}
+.wp-card:hover { border-color: var(--fern); }
+.wp-card.selected { border-color: var(--sage); background: rgba(74,124,53,.14); }
+.wp-card-header { display: flex; align-items: center; gap: 8px; padding: 8px 10px; }
+.wp-icon { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: .85rem; flex-shrink: 0; background: var(--moss); }
+.wp-icon.has-photo { background: var(--bark); }
+.wp-info { flex: 1; min-width: 0; }
+.wp-name-display { font-size: .83rem; font-weight: 500; color: var(--cream); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wp-coords { font-size: .67rem; color: var(--stone); font-family: 'Space Mono', monospace; }
+.wp-card-body { padding: 0 10px 10px; display: none; }
+.wp-card.expanded .wp-card-body { display: block; }
+.wp-thumb { width: 100%; height: 100px; object-fit: cover; border-radius: 5px; margin-bottom: 8px; }
+.form-group { margin-bottom: 8px; }
+.form-label { font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: var(--stone); display: block; margin-bottom: 4px; }
+.form-input {
+  width: 100%; padding: 6px 8px; background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.1); border-radius: 5px;
+  color: var(--cream); font-family: 'Outfit', sans-serif; font-size: .82rem;
+  transition: var(--transition); resize: none;
+}
+.form-input:focus { outline: none; border-color: var(--fern); }
+.char-count { font-size: .65rem; color: var(--stone); text-align: right; margin-top: 2px; }
+.wp-meta { font-size: .7rem; color: var(--stone); font-family: 'Space Mono', monospace; margin-bottom: 6px; line-height: 1.6; }
+.wp-meta span { color: var(--mist); }
+.btn-enlarge {
+  width: 100%; padding: 5px; background: rgba(74,124,53,.15); border: 1px solid var(--fern);
+  border-radius: 5px; color: var(--sage); font-size: .75rem; cursor: pointer; font-family: 'Outfit', sans-serif;
+}
+.btn-enlarge:hover { background: var(--moss); color: var(--snow); }
+
+#stats-bar { padding: 8px 16px; border-top: 1px solid rgba(255,255,255,.06); background: rgba(0,0,0,.2); display: flex; gap: 16px; }
+.stat { font-size: .7rem; color: var(--stone); }
+.stat strong { color: var(--mist); font-family: 'Space Mono', monospace; }
+
+#map-container { flex: 1; position: relative; display: flex; flex-direction: column; }
+#map { flex: 1; position: relative; min-height: 0; }
+#elev-panel {
+  height: 130px; flex-shrink: 0;
+  background: #0d1a09; border-top: 1px solid rgba(255,255,255,.08);
+  position: relative; cursor: crosshair;
+}
+#elev-canvas { display: block; width: 100%; height: 100%; }
+#elev-tooltip {
+  position: absolute; top: 6px; left: 50%; transform: translateX(-50%);
+  background: rgba(0,0,0,.7); color: var(--mist); font-family: 'Space Mono', monospace;
+  font-size: .68rem; padding: 3px 8px; border-radius: 4px; pointer-events: none;
+  display: none; white-space: nowrap;
+}
+#elev-cursor {
+  position: absolute; top: 0; bottom: 0; width: 1px;
+  background: var(--sage); pointer-events: none; display: none;
+}
+#session-badge {
+  position: fixed; bottom: 20px; left: 20px; z-index: 500;
+  background: rgba(45,90,27,.85); border: 1px solid var(--fern);
+  border-radius: 6px; padding: 4px 10px; font-size: .7rem; color: var(--mist);
+  display: none; backdrop-filter: blur(4px);
+}
+
+.leaflet-popup-content-wrapper { background: var(--panel-bg) !important; border: 1px solid var(--fern) !important; border-radius: 10px !important; color: var(--cream) !important; box-shadow: 0 8px 32px rgba(0,0,0,.6) !important; }
+.leaflet-popup-tip { background: var(--panel-bg) !important; }
+.leaflet-popup-content { margin: 0 !important; }
+.popup-inner { padding: 14px; min-width: 220px; }
+.popup-name { font-weight: 600; font-size: .95rem; color: var(--sage); margin-bottom: 8px; }
+.popup-img { width: 100%; max-height: 200px; object-fit: cover; border-radius: 6px; margin-bottom: 8px; display: block; }
+.popup-coords { font-family: 'Space Mono', monospace; font-size: .7rem; color: var(--stone); margin-bottom: 6px; line-height: 1.7; }
+.popup-comment { font-size: .8rem; color: var(--mist); margin-bottom: 8px; line-height: 1.5; }
+.popup-enlarge { width: 100%; padding: 6px; border-radius: 5px; background: rgba(74,124,53,.2); border: 1px solid var(--fern); color: var(--sage); font-size: .78rem; cursor: pointer; }
+.popup-enlarge:hover { background: var(--moss); color: white; }
+
+#modal-overlay { position: fixed; inset: 0; z-index: 9000; background: rgba(0,0,0,.85); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; }
+#modal-overlay.open { display: flex; }
+#modal-img { max-width: 92vw; max-height: 88vh; border-radius: 8px; }
+#modal-close { position: absolute; top: 20px; right: 20px; width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,.15); border: none; color: white; font-size: 1.2rem; cursor: pointer; }
+
+#toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+.toast { padding: 10px 16px; border-radius: var(--radius); font-size: .82rem; background: var(--forest); border: 1px solid var(--fern); color: var(--cream); animation: slideIn .25s ease; max-width: 320px; }
+.toast.error { background: #2a0d04; border-color: var(--alert); }
+.toast.success { background: #0d2a0a; border-color: var(--sage); }
+@keyframes slideIn { from { transform: translateX(60px); opacity:0; } to { transform: translateX(0); opacity:1; } }
+
+/* MODAL AJOUT WAYPOINT */
+#wp-add-modal {
+  position: fixed; inset: 0; z-index: 8000;
+  background: rgba(0,0,0,.75); backdrop-filter: blur(4px);
+  display: none; align-items: center; justify-content: center;
+}
+#wp-add-modal.open { display: flex; }
+#wp-add-box {
+  background: var(--panel-bg); border: 1px solid var(--fern);
+  border-radius: 12px; padding: 20px; width: 320px; max-width: 92vw;
+}
+#wp-add-box h3 { font-size: .85rem; color: var(--sage); margin-bottom: 14px; text-transform: uppercase; letter-spacing: .08em; }
+#wp-add-coords { font-family: 'Space Mono', monospace; font-size: .72rem; color: var(--stone); margin-bottom: 12px; }
+#wp-add-thumb { width: 100%; height: 80px; object-fit: cover; border-radius: 6px; margin-bottom: 8px; display: none; }
+#wp-add-photo-zone {
+  border: 1px dashed var(--moss); border-radius: 6px; padding: 10px;
+  text-align: center; font-size: .75rem; color: var(--stone);
+  cursor: pointer; margin-bottom: 10px; transition: var(--transition);
+}
+#wp-add-photo-zone:hover { border-color: var(--sage); color: var(--mist); }
+#wp-add-photo-input { display: none; }
+.wp-add-row { display: flex; gap: 8px; margin-top: 10px; }
+.btn-confirm { flex: 1; padding: 9px; border-radius: 6px; border: none; background: var(--moss); color: var(--snow); font-family: 'Outfit', sans-serif; font-size: .85rem; font-weight: 600; cursor: pointer; }
+.btn-confirm:hover { background: var(--fern); }
+.btn-cancel  { flex: 1; padding: 9px; border-radius: 6px; border: 1px solid rgba(255,255,255,.1); background: transparent; color: var(--stone); font-family: 'Outfit', sans-serif; font-size: .85rem; cursor: pointer; }
+.btn-cancel:hover { color: var(--cream); }
+
+/* VOLET CRÉATION */
+#creation-box {
+  background: var(--panel-bg); border: 1px solid var(--fern);
+  border-radius: 12px; padding: 24px; width: 360px; max-width: 92vw;
+  margin-top: 48px;
+}
+#creation-box h3 { font-size: .85rem; color: var(--sage); margin-bottom: 16px; text-transform: uppercase; letter-spacing: .08em; }
+#creation-drop-zone {
+  border: 2px dashed var(--moss); border-radius: var(--radius);
+  padding: 24px 12px; text-align: center; cursor: pointer;
+  transition: var(--transition); background: rgba(45,90,27,.06);
+}
+#creation-drop-zone:hover { border-color: var(--sage); background: rgba(74,124,53,.12); }
+#creation-drop-zone input { display: none; }
+#creation-drop-zone .drop-icon { font-size: 2rem; margin-bottom: 6px; }
+#creation-drop-zone p { font-size: .8rem; color: var(--stone); line-height: 1.4; }
+#creation-file-name { margin-top: 8px; font-size: .72rem; color: var(--mist); font-family: 'Space Mono', monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#creation-gps-statut { margin-top: 14px; font-size: .78rem; color: var(--stone); font-family: 'Space Mono', monospace; text-align: center; min-height: 1.2em; }
+#creation-repli-manuel { display: none; margin-top: 14px; }
+.creation-repli-texte { font-size: .78rem; color: var(--stone); margin-bottom: 8px; }
+.creation-repli-row { display: flex; gap: 8px; margin-bottom: 8px; }
+.creation-repli-row .form-input { flex: 1; }
+/* Bouton supprimer dans la carte waypoint */
+.btn-delete {
+  width: 100%; padding: 5px; background: rgba(200,75,26,.12);
+  border: 1px solid rgba(200,75,26,.4); border-radius: 5px;
+  color: #e07060; font-size: .75rem; cursor: pointer;
+  font-family: 'Outfit', sans-serif; margin-top: 4px;
+}
+.btn-delete:hover { background: rgba(200,75,26,.25); }
+.wp-add-photo-label {
+  display: block; width: 100%; padding: 7px; margin-bottom: 8px;
+  border: 1px dashed var(--moss); border-radius: 5px;
+  color: var(--stone); font-size: .75rem; text-align: center;
+  cursor: pointer; transition: var(--transition);
+}
+.wp-add-photo-label:hover { border-color: var(--sage); color: var(--mist); background: rgba(74,124,53,.08); }
+/* Bouton "+" sur la carte */
+#btn-add-wp {
+  position: absolute; bottom: 16px; right: 16px; z-index: 500;
+  width: 42px; height: 42px; border-radius: 50%;
+  background: var(--moss); border: 2px solid var(--sage);
+  color: white; font-size: 1.4rem; cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0,0,0,.4); transition: var(--transition);
+  display: flex; align-items: center; justify-content: center;
+}
+#btn-add-wp:hover { background: var(--fern); transform: scale(1.08); }
+#btn-add-wp.active { background: var(--alert); border-color: #e07060; }
+#add-wp-hint {
+  position: absolute; bottom: 68px; right: 10px; z-index: 500;
+  background: rgba(0,0,0,.75); color: var(--mist); font-size: .72rem;
+  padding: 5px 10px; border-radius: 5px; display: none; white-space: nowrap;
+}
+#deploy-content { max-width: 680px; width: 100%; margin: 0 auto; padding: 28px 24px; display: flex; flex-direction: column; gap: 20px; }
+.dp-section { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 10px; padding: 18px 20px; }
+.dp-title { font-size: .8rem; text-transform: uppercase; letter-spacing: .1em; color: var(--sage); margin-bottom: 14px; font-weight: 600; }
+.dp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.dp-info-item { background: rgba(0,0,0,.2); border-radius: 6px; padding: 8px 12px; }
+.dp-label { font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; color: var(--stone); margin-bottom: 3px; }
+.dp-value { font-size: .85rem; color: var(--cream); font-family: 'Space Mono', monospace; word-break: break-all; }
+.dp-tree { font-family: 'Space Mono', monospace; font-size: .75rem; line-height: 1.9; color: var(--stone); background: rgba(0,0,0,.2); border-radius: 6px; padding: 12px 14px; white-space: pre; overflow-x: auto; margin: 0; }
+.dp-prog-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: .78rem; color: var(--stone); }
+.dp-prog-row span:first-child { width: 160px; flex-shrink: 0; }
+.dp-prog-row span:last-child { width: 36px; text-align: right; font-family: 'Space Mono', monospace; font-size: .7rem; color: var(--mist); }
+.dp-bar { flex: 1; height: 5px; background: rgba(255,255,255,.08); border-radius: 3px; overflow: hidden; }
+.dp-fill { height: 100%; width: 0%; border-radius: 3px; background: linear-gradient(90deg, var(--moss), var(--sage)); transition: width .3s ease; }
+.dp-note { background: rgba(200,150,42,.07); border: 1px solid rgba(200,150,42,.25); border-radius: 8px; padding: 12px 16px; font-size: .78rem; color: #c8b06a; line-height: 1.7; }
+.dp-note strong { display: block; margin-bottom: 4px; }
+.dp-note code { background: rgba(0,0,0,.3); padding: 1px 5px; border-radius: 3px; font-size: .75rem; }
+.dp-btn-primary { width: 100%; padding: 14px; border-radius: 8px; background: linear-gradient(135deg, var(--moss), var(--fern)); border: none; color: var(--snow); font-family: 'Outfit', sans-serif; font-size: 1rem; font-weight: 600; cursor: pointer; box-shadow: 0 4px 16px rgba(45,90,27,.4); transition: var(--transition); }
+.dp-btn-primary:hover:not(:disabled) { transform: translateY(-2px); }
+.dp-btn-primary:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ── Marching ants ──────────────────────────────────────── */
+@keyframes ma-fw { to { stroke-dashoffset: -21; } }
+.ma-trail { animation: ma-fw .65s linear infinite; stroke-linecap: round; }
+
+/* ── Sélecteur de voix TTS ──────────────────────────────── */
+#voice-selector-panel {
+  position: fixed; inset: 0; z-index: 11000;
+  background: rgba(0,0,0,.7); display: none;
+  align-items: center; justify-content: center;
+}
+#voice-selector-panel.open { display: flex; }
+#voice-selector-box {
+  background: var(--panel-bg); border: 1px solid rgba(255,255,255,.12);
+  border-radius: 14px; padding: 24px; width: min(420px, 92vw);
+  box-shadow: 0 8px 40px rgba(0,0,0,.6);
+}
+#voice-selector-box h3 {
+  font-size: .85rem; letter-spacing: .08em; color: var(--stone);
+  margin-bottom: 14px;
+}
+#voice-list {
+  display: flex; flex-direction: column; gap: 6px;
+  max-height: 50vh; overflow-y: auto;
+}
+.voice-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 8px; cursor: pointer;
+  border: 1px solid rgba(255,255,255,.07);
+  transition: background .15s;
+}
+.voice-item:hover { background: rgba(255,255,255,.06); }
+.voice-item.selected { border-color: var(--fern); background: rgba(74,124,53,.15); }
+.voice-item-name { font-size: .88rem; color: var(--cream); font-weight: 500; }
+.voice-item-lang { font-size: .75rem; color: var(--stone); font-family: monospace; }
+.voice-preview-btn {
+  margin-left: auto; padding: 5px 10px; border-radius: 6px;
+  background: rgba(255,255,255,.08); border: none; color: var(--stone);
+  font-size: .75rem; cursor: pointer; white-space: nowrap;
+}
+.voice-preview-btn:hover { background: rgba(255,255,255,.15); color: var(--cream); }
+#voice-selector-close {
+  margin-top: 16px; width: 100%; padding: 11px;
+  border-radius: 8px; border: none; cursor: pointer;
+  background: linear-gradient(135deg, var(--moss), var(--fern));
+  color: var(--snow); font-family: inherit; font-size: .9rem; font-weight: 600;
+}
+
+/* ── Panneau Aide IA ──────────────────────────────────────────── */
+#aide-ia-overlay {
+  position: fixed; inset: 0; z-index: 12000;
+  background: rgba(0,0,0,.65);
+  display: none; align-items: flex-end; justify-content: center;
+}
+#aide-ia-overlay.open { display: flex; }
+#aide-ia-box {
+  width: 100%; max-width: 640px;
+  background: var(--panel-bg);
+  border-radius: 20px 20px 0 0;
+  border-top: 1px solid rgba(255,255,255,.1);
+  padding: 22px 18px;
+  padding-bottom: calc(22px + env(safe-area-inset-bottom));
+  max-height: 90vh; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 14px;
+}
+#aide-ia-box h3 { font-size: .82rem; letter-spacing: .1em; color: var(--stone); text-transform: uppercase; }
+.aia-section { display: flex; flex-direction: column; gap: 6px; }
+.aia-label { font-size: .7rem; font-weight: 700; letter-spacing: .1em; color: var(--stone); text-transform: uppercase; }
+.aia-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.aia-btn {
+  flex: 1; min-width: 70px; padding: 8px 10px;
+  border-radius: 8px; border: 1.5px solid rgba(255,255,255,.1);
+  background: rgba(255,255,255,.04); color: var(--stone);
+  font-size: .8rem; font-weight: 600; cursor: pointer;
+  transition: all .15s; text-align: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.aia-btn:hover { border-color: var(--fern); color: var(--cream); }
+.aia-btn.active {
+  border-color: var(--sage); color: var(--snow);
+  background: rgba(74,124,53,.2);
+  box-shadow: 0 0 10px rgba(122,173,90,.25);
+}
+#aia-btn-generate {
+  padding: 12px; border-radius: 10px; border: none;
+  background: linear-gradient(135deg, var(--moss), var(--fern));
+  color: var(--snow); font-family: inherit; font-size: .9rem; font-weight: 700;
+  cursor: pointer; transition: all .15s;
+}
+#aia-btn-generate:hover { filter: brightness(1.1); }
+#aia-btn-generate:disabled { opacity: .4; cursor: not-allowed; }
+#aia-prompt-wrap { display: none; flex-direction: column; gap: 8px; }
+#aia-prompt-wrap.visible { display: flex; }
+#aia-prompt-box {
+  background: rgba(0,0,0,.3); border: 1px solid rgba(255,255,255,.1);
+  border-radius: 10px; padding: 12px 14px;
+  font-size: .82rem; color: var(--mist); line-height: 1.6;
+  white-space: pre-wrap; word-break: break-word;
+  max-height: 160px; overflow-y: auto; font-family: inherit;
+}
+.aia-actions { display: flex; gap: 8px; }
+#aia-btn-copy {
+  flex: 1; padding: 10px; border-radius: 8px;
+  border: 1px solid var(--fern); background: rgba(74,124,53,.15);
+  color: var(--sage); font-family: inherit; font-size: .85rem; font-weight: 600;
+  cursor: pointer; transition: all .15s;
+}
+#aia-btn-copy:hover { background: rgba(74,124,53,.3); }
+#aia-paste-hint {
+  font-size: .75rem; color: var(--stone); line-height: 1.5;
+  background: rgba(255,255,255,.03); border-radius: 8px; padding: 10px 12px;
+  border: 1px solid rgba(255,255,255,.07);
+}
+#aia-response-wrap { display: none; flex-direction: column; gap: 8px; }
+#aia-response-wrap.visible { display: flex; }
+#aia-response-input {
+  width: 100%; padding: 10px 12px; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.1); background: rgba(0,0,0,.25);
+  color: var(--cream); font-family: inherit; font-size: .85rem;
+  line-height: 1.55; resize: vertical; min-height: 90px;
+}
+#aia-response-input:focus { outline: none; border-color: var(--sage); }
+#aia-btn-apply {
+  padding: 11px; border-radius: 8px; border: none;
+  background: var(--fern); color: var(--snow);
+  font-family: inherit; font-size: .88rem; font-weight: 700; cursor: pointer;
+}
+#aia-btn-apply:hover { filter: brightness(1.1); }
+#aia-btn-close {
+  padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,.1);
+  background: transparent; color: var(--stone);
+  font-family: inherit; font-size: .85rem; cursor: pointer;
+}
+#aia-btn-close:hover { color: var(--cream); }
+
+/* ── Visite : agrandissement de la photo / réduction de la carte ── */
+/* flex-basis de #visite-map-wrap piloté directement en JS (voir toggleVisitePhotoZoom) */
+#visite-map-wrap, #visite-photo-wrap { transition: flex-basis .32s ease; }
+#visite-zoom-btn {
+  position: absolute; top: 8px; right: 10px; z-index: 520;
+  width: 32px; height: 32px; border-radius: 50%; border: none;
+  background: rgba(0,0,0,.45); color: #b8d4a0; font-size: .95rem;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+#visite-zoom-btn:hover { background: rgba(0,0,0,.7); color: var(--snow); }
+#visite-photo, #visite-no-photo { cursor: pointer; }
+
+</style>
 </head>
 <body>
 
-<header id="app-header">
-  <button id="btn-home" class="header-btn" title="Accueil" aria-label="Accueil">🏠</button>
-  <h1 id="app-title">GeoTour</h1>
-  <nav id="onglets-principaux">
-    <button class="onglet" data-mode="creer">📷 Créer</button>
-    <button class="onglet" data-mode="randonnee">🥾 Randonnée</button>
-  </nav>
+<header id="header">
+  <div id="logo">
+    <svg viewBox="0 0 30 30" width="28" height="28" fill="none">
+      <path d="M15 2L27 26H3L15 2Z" stroke="#4a7c35" stroke-width="1.5"/>
+      <path d="M15 8L22 22H8L15 8Z" fill="#2d5a1b"/>
+      <circle cx="15" cy="15" r="2" fill="#7aad5a"/>
+    </svg>
+    GeoTour
+  </div>
+  <div id="tab-bar">
+    <button class="tab-btn active" onclick="switchPanel('editor-panel')">🗺 Édition</button>
+    <button class="tab-btn" onclick="switchPanel('creation-panel')">📷 Création</button>
+    <button class="tab-btn" onclick="switchPanel('visite-panel')">🎬 Visite</button>
+    <button class="tab-btn" onclick="switchPanel('deploy-panel')">📦 Déploiement</button>
+  </div>
 </header>
 
-<!-- Écran d'accueil -->
-<section id="screen-accueil" class="screen active">
-  <div class="accueil-cartes">
-    <button class="carte-mode" data-mode="creer">
-      <span class="carte-icone">📷</span>
-      <span class="carte-titre">Créer un waypoint</span>
-      <span class="carte-desc">À partir d'une photo géolocalisée, avec repli manuel si besoin</span>
-    </button>
-    <button class="carte-mode" data-mode="randonnee">
-      <span class="carte-icone">🥾</span>
-      <span class="carte-titre">Randonnée</span>
-      <span class="carte-desc">Importer un KMZ/KML/GPX, visualiser, gérer les waypoints</span>
-    </button>
-  </div>
-</section>
+<main id="app">
 
-<!-- Écran Créer (ex-photo2waypoint) -->
-<section id="screen-creer" class="screen">
-  <div class="form-creer">
-    <label class="champ">
-      Photo (JPEG)
-      <input type="file" id="input-photo" accept="image/jpeg">
-    </label>
-
-    <div id="apercu-photo-conteneur"></div>
-    <p id="statut-gps" class="statut"></p>
-
-    <div id="repli-manuel" class="repli-manuel" hidden>
-      <p>Aucune coordonnée GPS trouvée dans la photo. Choisissez une méthode :</p>
-      <div class="choix-repli">
-        <button type="button" id="btn-repli-saisie" class="action-secondaire">Saisir les coordonnées</button>
-        <button type="button" id="btn-repli-carte" class="action-secondaire">Pointer sur la carte</button>
+  <!-- VOLET ÉDITION -->
+  <div id="editor-panel" class="panel active">
+    <div id="sidebar">
+      <div id="sidebar-header">
+        <h3>Fichier KMZ</h3>
+        <div id="file-drop-zone" onclick="document.getElementById('kmz-input').click()">
+          <input type="file" id="kmz-input" accept=".kmz,.kml,.gpx" onchange="loadKMZ(this.files[0])">
+          <div class="drop-icon">🗺️</div>
+          <p>Glissez un fichier <strong>KMZ, KML</strong> ou <strong>GPX</strong> ou cliquez pour parcourir</p>
+          <div id="file-name-display">Aucun fichier chargé</div>
+        </div>
+        <div id="import-mode" style="display:flex;gap:6px;margin-top:8px;">
+          <button type="button" class="mode-btn active" id="mode-replace" title="Choisir un fichier qui remplacera entièrement les waypoints et le tracé actuels" onclick="setImportMode('replace',this)">🔄 Remplacer</button>
+          <button type="button" class="mode-btn" id="mode-append" title="Choisir un fichier dont les waypoints s'ajouteront à ceux déjà présents, sans les effacer" onclick="setImportMode('append',this)">➕ Ajouter</button>
+        </div>
+        <div id="map-controls" style="margin-top:10px;">
+          <button class="map-btn active" onclick="setLayer('osm',this)">OSM</button>
+          <button class="map-btn" onclick="setLayer('ign-plan',this)">IGN Plan</button>
+          <button class="map-btn" onclick="setLayer('ign-ortho',this)">IGN Ortho</button>
+          <button class="map-btn" id="btn-mbtiles" onclick="onMbtilesBtn(this)" title="Charger un fichier .mbtiles local">📦 MBtiles</button>
+          <input type="file" id="mbtiles-input" accept=".mbtiles" style="display:none" onchange="onMbtilesFile(this.files[0])">
+        </div>
+        <div id="mbtiles-info" style="display:none;margin-top:6px;font-size:.72rem;color:var(--stone);"></div>
       </div>
-      <div id="repli-saisie" hidden class="repli-saisie">
-        <label class="champ">Latitude <input type="number" step="any" id="input-lat"></label>
-        <label class="champ">Longitude <input type="number" step="any" id="input-lon"></label>
+      <div id="waypoints-list">
+        <div style="text-align:center;padding:40px 16px;color:var(--stone);font-size:.82rem;">
+          <div style="font-size:2rem;margin-bottom:8px;">🏔️</div>
+          Chargez un fichier KMZ pour voir les waypoints
+        </div>
       </div>
-      <div id="repli-carte" hidden>
-        <div id="carte-pointage"></div>
-        <p class="aide">Touchez la carte pour placer le point.</p>
+      <div id="stats-bar">
+        <div class="stat">Waypoints : <strong id="stat-wp">0</strong></div>
+        <div class="stat">Photos : <strong id="stat-photos">0</strong></div>
+        <div class="stat">Distance : <strong id="stat-dist">—</strong></div>
+        <div class="stat">D+ : <strong id="stat-dp" style="color:#7aad5a">—</strong></div>
+        <div class="stat">D- : <strong id="stat-dm" style="color:#e07060">—</strong></div>
+      </div>
+      <div id="kmz-save-bar" style="padding:8px 16px;border-top:1px solid rgba(255,255,255,.06);">
+        <button id="btn-save-kmz" class="btn-enlarge" style="width:100%;" onclick="saveSessionKMZ()" disabled title="Enregistrer les waypoints et le tracé actuels dans un fichier KMZ autonome (photos incluses), pour partage avec d'autres appareils ou applications">
+          💾 Sauvegarder la session en KMZ
+        </button>
       </div>
     </div>
-
-    <label class="champ">Nom (40 car. max)
-      <input type="text" id="input-nom" maxlength="40">
-    </label>
-    <label class="champ">Commentaire (600 car. max)
-      <textarea id="input-commentaire" maxlength="600" rows="4"></textarea>
-    </label>
-
-    <button id="btn-ajouter-a-randonnee" class="action-principale" disabled>
-      ➕ Ajouter à la randonnée en cours
-    </button>
-    <button id="btn-export-kmz-creer" class="action-secondaire" disabled>
-      💾 Exporter en KMZ
-    </button>
-  </div>
-</section>
-
-<!-- Écran Randonnée (ex-randonneur8) -->
-<section id="screen-randonnee" class="screen">
-  <div class="zone-import" id="zone-import" tabindex="0" role="button">
-    <input type="file" id="input-import-trace" accept=".kml,.kmz,.gpx" hidden>
-    <span class="zone-import-icone">🗺️</span>
-    <p class="zone-import-texte">Glissez un fichier <strong>KMZ, KML</strong> ou <strong>GPX</strong> ou cliquez pour parcourir</p>
-    <p id="zone-import-nom" class="zone-import-nom">Aucun fichier chargé</p>
-  </div>
-  <div class="barre-import-actions">
-    <button id="btn-import-remplacer" class="action-secondaire" disabled>🔄 Remplacer</button>
-    <button id="btn-import-ajouter" class="action-secondaire" disabled>➕ Ajouter</button>
-  </div>
-
-  <div class="segmented-fond" id="segmented-fond">
-    <button type="button" class="segment actif" data-fond="osm">OSM</button>
-    <button type="button" class="segment" data-fond="ign-plan">IGN Plan</button>
-    <button type="button" class="segment" data-fond="ign-ortho">IGN Ortho</button>
-    <button type="button" class="segment" data-fond="mbtiles" disabled title="MBtiles hors-ligne : pas encore disponible dans geotour">📦 MBtiles</button>
-  </div>
-
-  <div id="carte-randonnee"></div>
-
-  <div class="stats-grid">
-    <div class="stat"><span class="stat-icone">📍</span><span id="stat-waypoints" class="stat-valeur">0</span><span class="stat-label">Waypoints</span></div>
-    <div class="stat"><span class="stat-icone">📷</span><span id="stat-photos" class="stat-valeur">0</span><span class="stat-label">Photos</span></div>
-    <div class="stat"><span class="stat-icone">📏</span><span id="stat-distance" class="stat-valeur">—</span><span class="stat-label">Distance</span></div>
-    <div class="stat"><span class="stat-icone">⬈</span><span id="stat-dplus" class="stat-valeur">—</span><span class="stat-label">D+</span></div>
-    <div class="stat"><span class="stat-icone">⬊</span><span id="stat-dmoins" class="stat-valeur">—</span><span class="stat-label">D-</span></div>
-  </div>
-  <p id="profil-erreur" class="statut"></p>
-  <div id="profil-conteneur"></div>
-
-  <div id="liste-waypoints" class="liste-waypoints"></div>
-
-  <div class="barre-randonnee-actions">
-    <button id="btn-mode-visite" class="action-secondaire" disabled>🎙️ Mode Visite</button>
-    <button id="btn-export-diaporama" class="action-secondaire" disabled>🖥️ Diaporama HTML</button>
-    <button id="btn-export-session-kmz" class="action-secondaire" disabled>💾 Sauvegarder la session en KMZ</button>
-    <button id="btn-export-deploiement" class="action-secondaire" disabled>📦 Déploiement (zip)</button>
-  </div>
-
-  <div id="panneau-visite" class="panneau-visite" hidden>
-    <div class="visite-entete">
-      <button id="btn-visite-fermer" class="header-btn" aria-label="Fermer la visite">✕</button>
-      <span id="visite-compteur"></span>
-    </div>
-    <div id="carte-visite"></div>
-    <div class="visite-fiche">
-      <div id="visite-photo-conteneur"></div>
-      <h2 id="visite-nom"></h2>
-      <p id="visite-commentaire"></p>
-    </div>
-    <div class="visite-controles">
-      <button id="btn-visite-precedent" class="action-secondaire">◀ Précédent</button>
-      <button id="btn-visite-lire" class="action-principale">🔊 Lire</button>
-      <button id="btn-visite-suivant" class="action-secondaire">Suivant ▶</button>
+    <div id="map-container">
+      <div id="map"></div>
+      <button id="btn-add-wp" title="Ajouter un waypoint" onclick="toggleAddWpMode()">＋</button>
+      <div id="add-wp-hint">Cliquez sur la carte pour placer le waypoint</div>
+      <div id="elev-panel">
+        <canvas id="elev-canvas"></canvas>
+        <div id="elev-tooltip"></div>
+        <div id="elev-cursor"></div>
+      </div>
     </div>
   </div>
-</section>
 
-<script src="vendor/leaflet/leaflet.js"></script>
-<script src="vendor/jszip.min.js"></script>
-<script src="js/state.js"></script>
-<script src="js/map-layers.js"></script>
-<script src="js/kml.js"></script>
-<script src="js/export.js"></script>
-<script src="js/altimetrie.js"></script>
-<script src="js/exif.js"></script>
-<script src="js/mode-creer.js"></script>
-<script src="js/mode-randonnee.js"></script>
-<script src="js/visite.js"></script>
-<script src="js/app.js"></script>
+  <!-- VOLET CRÉATION -->
+  <div id="creation-panel" class="panel" style="display:none;flex-direction:column;overflow-y:auto;background:var(--panel-bg);align-items:center;">
+    <div id="creation-box">
+      <h3>📷 Créer un waypoint depuis une photo</h3>
+      <div id="creation-drop-zone" onclick="document.getElementById('creation-photo-input').click()">
+        <input type="file" id="creation-photo-input" accept="image/*" onchange="onCreationPhotoChange(this.files[0])">
+        <div class="drop-icon">📷</div>
+        <p>Choisissez une photo géolocalisée (JPEG)</p>
+        <div id="creation-file-name">Aucune photo choisie</div>
+      </div>
+      <div id="creation-gps-statut"></div>
+      <div id="creation-repli-manuel">
+        <p class="creation-repli-texte">Aucune coordonnée GPS trouvée dans cette photo :</p>
+        <div class="creation-repli-row">
+          <input class="form-input" type="number" step="any" id="creation-lat" placeholder="Latitude">
+          <input class="form-input" type="number" step="any" id="creation-lon" placeholder="Longitude">
+        </div>
+        <div class="creation-repli-row">
+          <button class="btn-confirm" onclick="validerCoordonneesManuelles()">✓ Valider ces coordonnées</button>
+          <button class="btn-cancel" onclick="pointerCreationSurCarte()">🗺️ Pointer sur la carte</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="session-badge">💾 Session restaurée</div>
+
+
+  <!-- PANNEAU SÉLECTEUR DE VOIX TTS -->
+  <div id="voice-selector-panel">
+    <div id="voice-selector-box">
+      <h3>🔊 VOIX DE LECTURE</h3>
+      <div id="voice-list"></div>
+      <button id="voice-selector-close" onclick="closeVoiceSelector()">Fermer</button>
+    </div>
+  </div>
+
+  <!-- VOLET VISITE -->
+  <div id="visite-panel" class="panel" style="display:none;flex-direction:column;overflow-y:auto;background:var(--panel-bg);align-items:center;">
+    <div style="max-width:680px;width:100%;margin:0 auto;padding:28px 24px;display:flex;flex-direction:column;gap:20px;">
+      <div id="visite-status" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:18px 20px;font-size:.85rem;color:var(--stone);text-align:center;line-height:1.8;">
+        <div style="font-size:2rem;margin-bottom:8px;">🎬</div>
+        <div>Chargez un fichier KMZ dans l'onglet <strong style="color:var(--sage)">Edition</strong> puis lancez la visite.</div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button id="btn-start-visite" onclick="startVisite()" disabled
+          style="flex:1;min-width:140px;padding:13px;border-radius:8px;border:none;font-family:inherit;font-size:.92rem;font-weight:600;cursor:pointer;background:linear-gradient(135deg,var(--moss),var(--fern));color:var(--snow);">
+          &#x25b6; Lancer la visite
+        </button>
+        <button id="btn-export-visite" onclick="exportVisite()" disabled
+          style="flex:1;min-width:140px;padding:13px;border-radius:8px;border:1px solid rgba(255,255,255,.12);font-family:inherit;font-size:.92rem;font-weight:600;cursor:pointer;background:rgba(255,255,255,.06);color:var(--stone);">
+          &#x2b07; Exporter HTML
+        </button>
+        <button onclick="openVoiceSelector()"
+          style="flex:1;min-width:140px;padding:13px;border-radius:8px;border:1px solid rgba(255,255,255,.12);font-family:inherit;font-size:.92rem;font-weight:600;cursor:pointer;background:rgba(255,255,255,.06);color:var(--stone);">
+          &#x1f50a; Voix TTS
+        </button>
+      </div>
+      <div id="visite-wp-list-section" style="display:none;">
+        <h3 style="font-size:.8rem;color:var(--stone);letter-spacing:.08em;margin-bottom:8px;">ETAPES</h3>
+        <div id="visite-wp-list" style="font-size:.82rem;color:var(--stone);line-height:2;font-family:monospace;white-space:pre;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OVERLAY PLEIN ECRAN VISITE -->
+  <div id="visite-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:10000;background:#000;display:none;flex-direction:column;padding-top:env(safe-area-inset-top);">
+    <div style="flex:0 0 38vh;position:relative;min-height:0;" id="visite-map-wrap">
+      <div id="visite-map" style="width:100%;height:100%;"></div>
+      <div style="position:absolute;top:0;left:0;right:0;background:linear-gradient(rgba(0,0,0,.7),transparent);padding:8px 14px;display:flex;align-items:center;gap:10px;z-index:500;">
+        <span id="visite-prog-txt" style="font-family:monospace;font-size:.72rem;color:#b8d4a0;flex-shrink:0;">1 / 1</span>
+        <div style="flex:1;height:3px;background:rgba(255,255,255,.15);border-radius:2px;overflow:hidden;">
+          <div id="visite-prog-fill" style="height:100%;background:#7aad5a;border-radius:2px;transition:width .4s;width:0%;"></div>
+        </div>
+      </div>
+      <button onclick="stopVisite()" style="position:absolute;top:8px;right:12px;width:34px;height:34px;border-radius:50%;background:rgba(200,75,26,.7);border:none;color:white;font-size:.9rem;cursor:pointer;z-index:600;">&#x2715;</button>
+    </div>
+    <div style="flex:1 1 auto;min-height:0;position:relative;background:#0a0f07;display:flex;align-items:center;justify-content:center;overflow:hidden;" id="visite-photo-wrap" onmouseenter="visitePhotoHoverIn()" onmouseleave="visitePhotoHoverOut()">
+      <img id="visite-photo" src="" alt="" onclick="toggleVisitePhotoZoom()" style="max-width:100%;max-height:100%;object-fit:contain;display:none;">
+      <div id="visite-no-photo" onclick="toggleVisitePhotoZoom()" style="font-size:4rem;opacity:.2;display:none;">🏔</div>
+      <button id="visite-zoom-btn" onclick="toggleVisitePhotoZoom()" title="Agrandir / réduire la photo">⛶</button>
+      <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.88));padding:14px 16px;max-height:50%;overflow-y:auto;">
+        <div id="visite-wp-name" style="font-family:monospace;font-size:.95rem;font-weight:700;color:#7aad5a;margin-bottom:3px;"></div>
+        <div id="visite-wp-comment" style="font-size:.78rem;color:#b8d4a0;line-height:1.5;"></div>
+      </div>
+    </div>
+    <div style="flex:0 0 auto;display:flex;gap:8px;justify-content:center;padding:12px 10px;padding-bottom:calc(12px + env(safe-area-inset-bottom));background:#0d1a09;border-top:1px solid rgba(255,255,255,.08);">
+      <button id="visite-btn-prev" onclick="visitePrev()" style="padding:13px 18px;border-radius:24px;border:none;font-size:.82rem;font-weight:600;cursor:pointer;background:rgba(255,255,255,.14);color:#b8d4a0;min-width:80px;-webkit-tap-highlight-color:transparent;">&laquo; Préc.</button>
+      <button id="visite-btn-tts" onclick="visiteReadComment()" style="padding:13px 18px;border-radius:24px;border:none;font-size:.82rem;font-weight:600;cursor:pointer;background:rgba(74,124,53,.9);color:#f8f5ee;flex:1;max-width:200px;-webkit-tap-highlight-color:transparent;">Lire le commentaire</button>
+      <button id="visite-btn-next" onclick="visiteNext()" style="padding:13px 18px;border-radius:24px;border:none;font-size:.82rem;font-weight:600;cursor:pointer;background:rgba(255,255,255,.14);color:#b8d4a0;min-width:80px;-webkit-tap-highlight-color:transparent;">Suiv. &raquo;</button>
+    </div>
+  </div>
+
+  <!-- PANNEAU AIDE IA -->
+  <div id="aide-ia-overlay" onclick="handleAideIaOverlayClick(event)">
+    <div id="aide-ia-box">
+      <h3>🤖 Aide IA — Générateur de prompt</h3>
+      <p style="font-size:.75rem;color:var(--stone);line-height:1.5;" id="aia-wp-context"></p>
+
+      <!-- IA -->
+      <div class="aia-section">
+        <div class="aia-label">Intelligence artificielle</div>
+        <div class="aia-btns">
+          <button class="aia-btn" data-aia-ia="Claude"   onclick="aiaSelect(this,'ia')">🟠 Claude</button>
+          <button class="aia-btn" data-aia-ia="Gemini"   onclick="aiaSelect(this,'ia')">🔵 Gemini</button>
+          <button class="aia-btn" data-aia-ia="ChatGPT"  onclick="aiaSelect(this,'ia')">🟣 ChatGPT</button>
+        </div>
+      </div>
+
+      <!-- Longueur -->
+      <div class="aia-section">
+        <div class="aia-label">Longueur du commentaire</div>
+        <div class="aia-btns">
+          <button class="aia-btn" data-aia-len="300" onclick="aiaSelect(this,'len')">300 car.</button>
+          <button class="aia-btn" data-aia-len="480" onclick="aiaSelect(this,'len')">480 car.</button>
+          <button class="aia-btn" data-aia-len="550" onclick="aiaSelect(this,'len')">550 car.</button>
+        </div>
+      </div>
+
+      <!-- Niveau -->
+      <div class="aia-section">
+        <div class="aia-label">Niveau d'expertise</div>
+        <div class="aia-btns">
+          <button class="aia-btn" data-aia-niv="grand public"  onclick="aiaSelect(this,'niv')">👥 Grand public</button>
+          <button class="aia-btn" data-aia-niv="averti"        onclick="aiaSelect(this,'niv')">🎓 Averti</button>
+        </div>
+      </div>
+
+      <!-- Style -->
+      <div class="aia-section">
+        <div class="aia-label">Style de réponse</div>
+        <div class="aia-btns">
+          <button class="aia-btn" data-aia-sty="académique"   onclick="aiaSelect(this,'sty')">📚 Académique</button>
+          <button class="aia-btn" data-aia-sty="original"     onclick="aiaSelect(this,'sty')">✨ Original</button>
+          <button class="aia-btn" data-aia-sty="anecdotique"  onclick="aiaSelect(this,'sty')">📖 Anecdotique</button>
+        </div>
+      </div>
+
+      <!-- Générer le prompt -->
+      <button id="aia-btn-generate" onclick="aiaGenerate()" disabled>✦ Générer le prompt</button>
+
+      <!-- Prompt généré -->
+      <div id="aia-prompt-wrap">
+        <div class="aia-label">Prompt à copier-coller dans votre IA</div>
+        <div id="aia-prompt-box"></div>
+        <div class="aia-actions">
+          <button id="aia-btn-copy" onclick="aiaCopyPrompt()">📋 Copier le prompt</button>
+        </div>
+        <div id="aia-paste-hint">
+          💡 Copiez ce prompt, collez-le dans <strong id="aia-hint-ia">votre IA</strong>,
+          puis collez la réponse ci-dessous.
+        </div>
+      </div>
+
+      <!-- Réponse à coller -->
+      <div id="aia-response-wrap">
+        <div class="aia-label">Réponse de l'IA (modifiable)</div>
+        <textarea id="aia-response-input" placeholder="Collez ici la réponse de l'IA…" maxlength="600"></textarea>
+        <button id="aia-btn-apply" onclick="aiaApply()">✓ Appliquer comme commentaire</button>
+      </div>
+
+      <button id="aia-btn-close" onclick="closeAideIa()">Fermer</button>
+    </div>
+  </div>
+
+  <!-- VOLET DÉPLOIEMENT -->
+  <div id="deploy-panel" class="panel" style="flex-direction:column;overflow-y:auto;background:var(--panel-bg);">
+    <div id="deploy-content">
+      <div class="dp-section">
+        <h3 class="dp-title">📋 Informations du package</h3>
+        <div class="dp-grid">
+          <div class="dp-info-item"><div class="dp-label">Fichier source</div><div class="dp-value" id="di-src">—</div></div>
+          <div class="dp-info-item"><div class="dp-label">Dossier généré</div><div class="dp-value" id="di-folder">—</div></div>
+          <div class="dp-info-item"><div class="dp-label">Waypoints</div><div class="dp-value" id="di-wp">0</div></div>
+          <div class="dp-info-item"><div class="dp-label">Photos</div><div class="dp-value" id="di-photos">0</div></div>
+          <div class="dp-info-item"><div class="dp-label">Distance tracé</div><div class="dp-value" id="di-dist">—</div></div>
+          <div class="dp-info-item"><div class="dp-label">Fond de carte</div><div class="dp-value" id="di-layer">OSM</div></div>
+        </div>
+      </div>
+      <div class="dp-section">
+        <h3 class="dp-title">📁 Structure du package</h3>
+        <pre class="dp-tree" id="dp-tree">Chargez un fichier KMZ dans l'éditeur…</pre>
+      </div>
+      <div class="dp-section">
+        <h3 class="dp-title">⏳ Progression</h3>
+        <div class="dp-prog-row"><span>Optimisation photos</span><div class="dp-bar"><div class="dp-fill" id="prog-photos"></div></div><span id="pv-photos">0%</span></div>
+        <div class="dp-prog-row"><span>Génération KML</span><div class="dp-bar"><div class="dp-fill" id="prog-kml"></div></div><span id="pv-kml">0%</span></div>
+        <div class="dp-prog-row"><span>Génération GPX</span><div class="dp-bar"><div class="dp-fill" id="prog-gpx"></div></div><span id="pv-gpx">0%</span></div>
+        <div class="dp-prog-row"><span>Génération HTML</span><div class="dp-bar"><div class="dp-fill" id="prog-html"></div></div><span id="pv-html">0%</span></div>
+        <div class="dp-prog-row"><span>Archivage ZIP</span><div class="dp-bar"><div class="dp-fill" id="prog-zip"></div></div><span id="pv-zip">0%</span></div>
+      </div>
+      <div class="dp-section">
+        <div class="dp-note">
+          <strong>📦 Déploiement sur GitHub Pages</strong>
+          Décompressez l'archive et déposez le dossier dans :<br>
+          <code>BernardHoyez.github.io/PWA/kmz-photos/&lt;nom_dossier&gt;/</code>
+        </div>
+      </div>
+      <div class="dp-section">
+        <button id="btn-download" class="dp-btn-primary" onclick="generatePackage()" disabled>
+          ⬇ Télécharger le Package ZIP
+        </button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<div id="modal-overlay" onclick="closeModal(event)">
+  <button id="modal-close" onclick="closeModal()">✕</button>
+  <img id="modal-img" src="" alt="">
+</div>
+<!-- MODAL AJOUT WAYPOINT -->
+<div id="wp-add-modal">
+  <div id="wp-add-box">
+    <h3>📍 Nouveau waypoint</h3>
+    <div id="wp-add-coords"></div>
+    <img id="wp-add-thumb" src="" alt="">
+    <div id="wp-add-photo-zone" onclick="document.getElementById('wp-add-photo-input').click()">
+      📷 Ajouter une photo (optionnel)
+    </div>
+    <input type="file" id="wp-add-photo-input" accept="image/*" onchange="onAddWpPhoto(this.files[0])">
+    <div class="form-group">
+      <label class="form-label">Nom</label>
+      <input class="form-input" type="text" id="wp-add-name" maxlength="40" placeholder="Nom du waypoint…">
+      <div class="char-count" id="wp-add-nc">0/40</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Commentaire</label>
+      <textarea class="form-input" id="wp-add-comment" rows="2" maxlength="600" placeholder="Description…"></textarea>
+    </div>
+    <div class="wp-add-row">
+      <button class="btn-cancel" onclick="closeAddWpModal()">Annuler</button>
+      <button class="btn-confirm" onclick="confirmAddWp()">✓ Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
+<script>
+
+// ── ÉTAT ─────────────────────────────────────────────
+const state = {
+  rawFileName: '',
+  waypoints: [],
+  trackCoords: [],
+  mapLayer: 'osm',
+  _photoMap: {},
+};
+
+// ── CARTE ────────────────────────────────────────────
+const map = L.map('map').setView([46.5, 2.5], 6);
+const layers = {
+  osm:        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }),
+  'ign-plan': L.tileLayer('https://data.geopf.fr/wmts?layer=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&style=normal&tilematrixset=PM&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image%2Fpng&TileMatrix={z}&TileCol={x}&TileRow={y}', { attribution: '© IGN', maxZoom: 19 }),
+  'ign-ortho':L.tileLayer('https://data.geopf.fr/wmts?layer=ORTHOIMAGERY.ORTHOPHOTOS&style=normal&tilematrixset=PM&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image%2Fjpeg&TileMatrix={z}&TileCol={x}&TileRow={y}', { attribution: '© IGN', maxZoom: 20 }),
+};
+layers.osm.addTo(map);
+
+function setLayer(name, btn) {
+  Object.values(layers).forEach(l => { if (map.hasLayer(l)) map.removeLayer(l); });
+  layers[name].addTo(map);
+  state.mapLayer = name;
+  document.querySelectorAll('.map-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ── FOND DE CARTE MBTILES (fichier local, lu via sql.js) ─────
+state.mbtiles = { db: null, format: 'png', bounds: null, fileName: null };
+let _sqlJsPromise = null;
+function loadSqlJs() {
+  if (!_sqlJsPromise) {
+    _sqlJsPromise = initSqlJs({
+      locateFile: f => 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/' + f
+    });
+  }
+  return _sqlJsPromise;
+}
+
+// Couche Leaflet lisant les tuiles directement dans la base MBtiles (SQLite)
+const MBTilesLayer = L.GridLayer.extend({
+  createTile: function (coords, done) {
+    const tile = document.createElement('img');
+    tile.alt = '';
+    const db = state.mbtiles.db;
+    if (!db) { setTimeout(() => done(null, tile), 0); return tile; }
+    const z = coords.z;
+    const x = coords.x;
+    const nCols = Math.pow(2, z);
+    let xw = ((x % nCols) + nCols) % nCols; // gère les tuiles hors [0, 2^z[ si wrap activé
+    const y = (nCols - 1) - coords.y; // conversion XYZ (Leaflet) -> TMS (MBtiles)
+    try {
+      const stmt = db.prepare('SELECT tile_data FROM tiles WHERE zoom_level=? AND tile_column=? AND tile_row=? LIMIT 1');
+      stmt.bind([z, xw, y]);
+      if (stmt.step()) {
+        const row = stmt.getAsObject();
+        const mime = state.mbtiles.format === 'jpg' ? 'image/jpeg'
+                   : state.mbtiles.format === 'webp' ? 'image/webp' : 'image/png';
+        const blob = new Blob([row.tile_data], { type: mime });
+        const url = URL.createObjectURL(blob);
+        tile.onload = () => { URL.revokeObjectURL(url); done(null, tile); };
+        tile.onerror = () => { URL.revokeObjectURL(url); done(null, tile); };
+        tile.src = url;
+      } else {
+        setTimeout(() => done(null, tile), 0); // tuile absente : case transparente
+      }
+      stmt.free();
+    } catch (e) {
+      setTimeout(() => done(null, tile), 0);
+    }
+    return tile;
+  }
+});
+
+function onMbtilesBtn(btn) {
+  const active = state.mapLayer === 'mbtiles' && state.mbtiles.db;
+  if (!state.mbtiles.db || active) {
+    document.getElementById('mbtiles-input').click();
+    return;
+  }
+  setLayer('mbtiles', btn);
+}
+
+async function onMbtilesFile(file) {
+  if (!file) return;
+  const infoEl = document.getElementById('mbtiles-info');
+  const btn = document.getElementById('btn-mbtiles');
+  try {
+    infoEl.style.display = 'block';
+    infoEl.textContent = '⏳ Lecture de ' + file.name + '…';
+    const [SQL, buffer] = await Promise.all([loadSqlJs(), file.arrayBuffer()]);
+    const db = new SQL.Database(new Uint8Array(buffer));
+
+    // Lecture des métadonnées MBtiles (format, bornes)
+    let format = 'png', bounds = null;
+    try {
+      const meta = db.exec("SELECT name,value FROM metadata");
+      if (meta.length) {
+        meta[0].values.forEach(([k, v]) => {
+          if (k === 'format') format = v;
+          if (k === 'bounds') bounds = v.split(',').map(Number);
+        });
+      }
+    } catch (e) { /* metadata absente : valeurs par défaut conservées */ }
+
+    if (layers.mbtiles && map.hasLayer(layers.mbtiles)) map.removeLayer(layers.mbtiles);
+    state.mbtiles.db = db;
+    state.mbtiles.format = format;
+    state.mbtiles.bounds = bounds;
+    state.mbtiles.fileName = file.name;
+
+    layers.mbtiles = new MBTilesLayer({ maxZoom: 22, minZoom: 0 });
+    setLayer('mbtiles', btn);
+
+    if (bounds && bounds.length === 4) {
+      map.fitBounds([[bounds[1], bounds[0]], [bounds[3], bounds[2]]]);
+    }
+
+    infoEl.textContent = '✅ ' + file.name + ' (' + format + ')';
+    toast('Fond MBtiles chargé : ' + file.name);
+  } catch (e) {
+    infoEl.textContent = '❌ Impossible de lire ce fichier .mbtiles';
+    toast('Erreur de lecture du fichier MBtiles', 'error');
+  } finally {
+    document.getElementById('mbtiles-input').value = '';
+  }
+}
+
+// ── DRAG & DROP ──────────────────────────────────────
+const dropZone = document.getElementById('file-drop-zone');
+dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragenter', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', e => { dropZone.classList.remove('drag-over'); });
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) loadKMZ(f);
+});
+
+// ── MODE D'IMPORT : Remplacer / Ajouter ──────────────
+let _importMode = 'replace';
+function setImportMode(mode, btn) {
+  _importMode = mode;
+  document.querySelectorAll('#import-mode .mode-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('kmz-input').click();
+}
+
+// ── CHARGEMENT KMZ ───────────────────────────────────
+async function loadKMZ(file, modeOverride) {
+  if (!file) return;
+  const mode = modeOverride || _importMode;
+  const prevCount = state.waypoints.length;
+  try {
+    toast('Chargement de ' + file.name + '…');
+    if (mode === 'replace') {
+      state.rawFileName = file.name.replace(/\.(kmz|kml|gpx)$/i, '');
+      document.getElementById('file-name-display').textContent = file.name;
+    } else {
+      const disp = document.getElementById('file-name-display');
+      disp.textContent = (disp.textContent === 'Aucun fichier chargé' ? file.name : disp.textContent + ' + ' + file.name);
+    }
+    state._photoMap = {};
+    const ext = file.name.split('.').pop().toLowerCase();
+
+    if (ext === 'kmz') {
+      const zip = await JSZip.loadAsync(file);
+      const kmlEntry = Object.values(zip.files).find(e => e.name.toLowerCase().endsWith('.kml'));
+      if (!kmlEntry) throw new Error('Aucun fichier KML dans le KMZ');
+      const kmlText = await kmlEntry.async('string');
+      const photoPromises = [];
+      zip.forEach((path, entry) => {
+        if (!entry.dir && /\.(jpg|jpeg|png|webp|gif)$/i.test(path)) {
+          photoPromises.push(entry.async('blob').then(blob => ({ name: path.split('/').pop(), blob })));
+        }
+      });
+      (await Promise.all(photoPromises)).forEach(p => { state._photoMap[p.name] = p.blob; });
+      parseKML(kmlText, mode);
+    } else if (ext === 'kml') {
+      const kmlText = await file.text();
+      parseKML(kmlText, mode);
+    } else if (ext === 'gpx') {
+      const gpxText = await file.text();
+      parseGPX(gpxText, mode);
+    } else {
+      throw new Error('Format non supporté : ' + ext);
+    }
+    if (mode === 'append') {
+      const added = state.waypoints.length - prevCount;
+      toast(added + ' waypoint(s) ajouté(s) — ' + state.waypoints.length + ' au total ✓', 'success');
+    } else {
+      toast(state.waypoints.length + ' waypoints chargés ✓', 'success');
+    }
+    saveSession();
+  } catch (err) {
+    toast('Erreur : ' + err.message, 'error');
+    console.error(err);
+  }
+}
+
+
+// ── Marching Ants : tracé animé ──────────────────────────────
+function addMarchingAntsTrack(coords) {
+  map.eachLayer(l => { if (l._isTrack) map.removeLayer(l); });
+  // fond sombre épais
+  const bg = L.polyline(coords, { color:'#1a3a0f', weight:8, opacity:.85, interactive:false });
+  bg._isTrack = true;
+  bg.addTo(map);
+  // halo intermédiaire
+  const mid = L.polyline(coords, { color:'#3d7a28', weight:5, opacity:.6, interactive:false });
+  mid._isTrack = true;
+  mid.addTo(map);
+  // couche animée — renderer par défaut de la carte (pas de renderer isolé)
+  const fg = L.polyline(coords, { color:'#d4f0a0', weight:3, interactive:false });
+  fg._isTrack = true;
+  fg.addTo(map);
+
+  function applyDash(){
+    var el=fg._path;
+    if(el){ el.setAttribute('stroke-dasharray','10 12'); el.classList.add('ma-trail'); }
+    else requestAnimationFrame(applyDash);
+  }
+  applyDash();
+  // Réappliquer après changement de fond de carte / zoom : Leaflet peut recréer le <path>
+  map.on('zoomend moveend baselayerchange', () => requestAnimationFrame(applyDash));
+
+  return fg;
+}
+
+// ── PARSEUR KML ──────────────────────────────────────
+function parseKML(txt, mode) {
+  mode = mode || 'replace';
+  const doc = new DOMParser().parseFromString(txt, 'application/xml');
+
+  if (mode === 'replace') {
+    state.waypoints = [];
+    state.trackCoords = [];
+    map.eachLayer(l => { if (l._isWp || l._isTrack) map.removeLayer(l); });
+  }
+
+  const newTrack = [];
+  doc.querySelectorAll('LineString coordinates').forEach(cs => {
+    newTrack.push(...parseCoords(cs.textContent));
+  });
+
+  if (mode === 'replace') {
+    state.trackCoords = newTrack;
+    if (state.trackCoords.length > 1) {
+      const pl = addMarchingAntsTrack(state.trackCoords.map(c => [c[0],c[1]]));
+      map.fitBounds(pl.getBounds(), { padding:[40,40] });
+    }
+  } else if (newTrack.length > 1) {
+    if (!state.trackCoords.length) {
+      // Pas de tracé existant : on adopte celui du fichier ajouté
+      state.trackCoords = newTrack;
+      const pl = addMarchingAntsTrack(state.trackCoords.map(c => [c[0],c[1]]));
+      map.fitBounds(pl.getBounds(), { padding:[40,40] });
+    } else {
+      toast('Tracé du fichier ajouté ignoré (un tracé est déjà présent)', 'info');
+    }
+  }
+
+  let nextId = state.waypoints.reduce((m,w) => Math.max(m, w.id), -1) + 1;
+  const newWps = [];
+  let idx = 0;
+  doc.querySelectorAll('Placemark').forEach(pm => {
+    const pt = pm.querySelector('Point');
+    if (!pt) return;
+    const coordEl = pt.querySelector('coordinates');
+    if (!coordEl) return;
+    const coords = parseCoords(coordEl.textContent);
+    if (!coords.length) return;
+    const [lat, lon, alt] = coords[0];
+    const name = pm.querySelector('name')?.textContent.trim() || ('Waypoint ' + (++idx));
+    const desc = pm.querySelector('description')?.textContent || '';
+    const imgMatch = desc.match(/src=["']?([^"'\s>]+\.(jpg|jpeg|png|webp|gif))/i);
+    const photoName = imgMatch ? imgMatch[1].split('/').pop() : null;
+    // Le commentaire est le texte de la description, débarrassé des balises
+    // HTML éventuelles (ex. <img>, <br/>) qu'un autre outil (ex. photo2waypoint)
+    // peut y avoir insérées pour référencer la photo associée.
+    const comment = desc.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+    const wp = {
+      id: nextId++, name, lat, lon, alt: alt||0, comment,
+      photoName: photoName||null,
+      photoBlob: (photoName && state._photoMap[photoName]) ? state._photoMap[photoName] : null,
+      photoOptimized: null, marker: null, _optimizedFname: null,
+    };
+    state.waypoints.push(wp);
+    newWps.push(wp);
+  });
+
+  newWps.forEach(addMarker);
+  renderList();
+  updateStats();
+  updateExportButtons();
+}
+
+function updateExportButtons() {
+  const ok = state.waypoints.length > 0;
+  const bd = document.getElementById('btn-download');
+  const bk = document.getElementById('btn-save-kmz');
+  if (bd) bd.disabled = !ok;
+  if (bk) bk.disabled = !ok;
+}
+
+function parseCoords(str) {
+  return str.trim().split(/\s+/).map(s => {
+    const p = s.split(',');
+    return p.length >= 2 ? [+p[1], +p[0], +(p[2]||0)] : null;
+  }).filter(Boolean);
+}
+
+// ── PARSEUR GPX ──────────────────────────────────────
+function parseGPX(txt, mode) {
+  mode = mode || 'replace';
+  const doc = new DOMParser().parseFromString(txt, 'application/xml');
+
+  if (mode === 'replace') {
+    state.waypoints = [];
+    state.trackCoords = [];
+    map.eachLayer(l => { if (l._isWp || l._isTrack) map.removeLayer(l); });
+  }
+
+  // Tracé — trkpt
+  const newTrack = [];
+  doc.querySelectorAll('trkpt').forEach(pt => {
+    const lat = +pt.getAttribute('lat');
+    const lon = +pt.getAttribute('lon');
+    const ele = +( pt.querySelector('ele')?.textContent || 0 );
+    if (!isNaN(lat) && !isNaN(lon)) newTrack.push([lat, lon, ele]);
+  });
+
+  // Tracé alternatif — rtept (route)
+  if (!newTrack.length) {
+    doc.querySelectorAll('rtept').forEach(pt => {
+      const lat = +pt.getAttribute('lat');
+      const lon = +pt.getAttribute('lon');
+      const ele = +( pt.querySelector('ele')?.textContent || 0 );
+      if (!isNaN(lat) && !isNaN(lon)) newTrack.push([lat, lon, ele]);
+    });
+  }
+
+  if (mode === 'replace') {
+    state.trackCoords = newTrack;
+    if (state.trackCoords.length > 1) {
+      const pl = addMarchingAntsTrack(state.trackCoords.map(c => [c[0],c[1]]));
+      map.fitBounds(pl.getBounds(), { padding:[40,40] });
+    }
+  } else if (newTrack.length > 1) {
+    if (!state.trackCoords.length) {
+      state.trackCoords = newTrack;
+      const pl = addMarchingAntsTrack(state.trackCoords.map(c => [c[0],c[1]]));
+      map.fitBounds(pl.getBounds(), { padding:[40,40] });
+    } else {
+      toast('Tracé du fichier ajouté ignoré (un tracé est déjà présent)', 'info');
+    }
+  }
+
+  // Waypoints — wpt
+  let nextId = state.waypoints.reduce((m,w) => Math.max(m, w.id), -1) + 1;
+  const newWps = [];
+  let idx = 0;
+  doc.querySelectorAll('wpt').forEach(wpt => {
+    const lat  = +wpt.getAttribute('lat');
+    const lon  = +wpt.getAttribute('lon');
+    const alt  = +( wpt.querySelector('ele')?.textContent || 0 );
+    const name = wpt.querySelector('name')?.textContent.trim() || ('Waypoint ' + (++idx));
+    const desc = wpt.querySelector('desc')?.textContent.trim() || '';
+    if (isNaN(lat) || isNaN(lon)) return;
+    const wp = {
+      id: nextId++, name, lat, lon, alt, comment: desc,
+      photoName: null, photoBlob: null, photoOptimized: null,
+      marker: null, _optimizedFname: null,
+    };
+    state.waypoints.push(wp);
+    newWps.push(wp);
+  });
+
+  newWps.forEach(addMarker);
+  renderList();
+  updateStats();
+  drawElevProfile();
+  updateExportButtons();
+  saveSession();
+}
+
+// ── MARQUEURS ────────────────────────────────────────
+function addMarker(wp) {
+  const p = !!wp.photoBlob;
+  const icon = L.divIcon({
+    className: '',
+    html: `<div style="width:32px;height:32px;border-radius:50% 50% 50% 0;background:${p?'#5c3d1e':'#2d5a1b'};border:2px solid ${p?'#c87040':'#7aad5a'};display:flex;align-items:center;justify-content:center;font-size:14px;transform:rotate(-45deg);box-shadow:0 2px 8px rgba(0,0,0,.5)"><span style="transform:rotate(45deg)">${p?'📷':'📍'}</span></div>`,
+    iconSize:[32,32], iconAnchor:[16,32], popupAnchor:[0,-34],
+  });
+  const m = L.marker([wp.lat, wp.lon], { icon });
+  m._isWp = true;
+  m.on('click', () => { openPopup(wp); selectCard(wp.id); });
+  m.addTo(map);
+  wp.marker = m;
+  enableWaypointDrag(wp);   // activer le glisser-déposer
+}
+
+function openPopup(wp) {
+  if (!wp.marker) return;
+  let imgHtml = '';
+  if (wp.photoBlob) {
+    const src = URL.createObjectURL(wp.photoOptimized || wp.photoBlob);
+    imgHtml = `<img class="popup-img" src="${src}"><button class="popup-enlarge" onclick="openModal('${src}')">🔍 Agrandir</button>`;
+  }
+  wp.marker.bindPopup(L.popup({ maxWidth:320 }).setContent(`
+    <div class="popup-inner">
+      <div class="popup-name">${esc(wp.name)}</div>
+      ${imgHtml}
+      <div class="popup-coords">🌐 ${wp.lat.toFixed(6)}, ${wp.lon.toFixed(6)}<br>⛰️ ${Math.round(wp.alt)} m</div>
+      ${wp.comment ? `<div class="popup-comment">💬 ${esc(wp.comment)}</div>` : ''}
+    </div>`)).openPopup();
+}
+
+// ── LISTE WAYPOINTS ───────────────────────────────────
+function renderList() {
+  const list = document.getElementById('waypoints-list');
+  if (!state.waypoints.length) {
+    list.innerHTML = '<div style="text-align:center;padding:40px 16px;color:var(--stone);">Aucun waypoint trouvé</div>';
+    return;
+  }
+  list.innerHTML = state.waypoints.map(wp => `
+    <div class="wp-card" id="wpc-${wp.id}">
+      <div class="wp-card-header" onclick="toggleCard(${wp.id})">
+        <div class="wp-icon ${wp.photoBlob?'has-photo':''}">${wp.photoBlob?'📷':'📍'}</div>
+        <div class="wp-info">
+          <div class="wp-name-display">${esc(wp.name)}</div>
+          <div class="wp-coords">${wp.lat.toFixed(4)}, ${wp.lon.toFixed(4)}</div>
+        </div>
+        <span style="color:var(--stone)">▼</span>
+      </div>
+      <div class="wp-card-body">
+        <div id="photo-zone-${wp.id}">
+          ${wp.photoBlob
+            ? `<img class="wp-thumb" id="thumb-${wp.id}" alt="">
+               <div style="display:flex;gap:6px;margin-bottom:8px">
+                 <button class="btn-enlarge" style="flex:1" id="enl-${wp.id}">🔍 Agrandir</button>
+                 <button class="btn-enlarge" style="flex:1;border-color:var(--alert);color:#e07060" onclick="removePhotoFromWp(${wp.id})">✕ Retirer</button>
+               </div>`
+            : `<label class="wp-add-photo-label" for="photo-input-${wp.id}">
+                 📷 Associer une photo
+               </label>
+               <input type="file" id="photo-input-${wp.id}" accept="image/*" style="display:none"
+                 onchange="addPhotoToWp(${wp.id}, this.files[0])">`
+          }
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nom (40 car. max)</label>
+          <input class="form-input" type="text" id="name-${wp.id}" value="${esc(wp.name)}" maxlength="40" oninput="updateName(${wp.id},this.value)">
+          <div class="char-count" id="nc-${wp.id}">${wp.name.length}/40</div>
+        </div>
+        <div class="form-group">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+            <label class="form-label" style="margin-bottom:0;">Commentaire (600 car. max)</label>
+            <button onclick="openAideIa(${wp.id})" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(122,173,90,.4);background:rgba(74,124,53,.12);color:var(--sage);font-size:.72rem;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent;">🤖 Aide IA</button>
+          </div>
+          <textarea class="form-input" id="cmt-${wp.id}" rows="3" maxlength="600" oninput="updateComment(${wp.id},this.value)">${esc(wp.comment)}</textarea>
+          <div class="char-count" id="cc-${wp.id}">${wp.comment.length}/600</div>
+        </div>
+        <div class="wp-meta">🌐 <span>${wp.lat.toFixed(6)}, ${wp.lon.toFixed(6)}</span><br>⛰️ <span>${Math.round(wp.alt)} m</span></div>
+        <div style="display:flex;gap:6px">
+          <button class="btn-delete" style="flex:1;border-color:var(--sage);color:var(--sage)" onclick="duplicateWp(${wp.id})">📄 Dupliquer</button>
+          <button class="btn-delete" style="flex:1" onclick="deleteWp(${wp.id})">🗑 Supprimer</button>
+        </div>
+      </div>
+    </div>`).join('');
+  state.waypoints.forEach(wp => { if (wp.photoBlob) loadThumb(wp); });
+}
+
+function toggleCard(id) {
+  const card = document.getElementById('wpc-'+id);
+  const opening = !card.classList.contains('expanded');
+  card.classList.toggle('expanded');
+  if (opening) {
+    const wp = state.waypoints.find(w => w.id===id);
+    if (wp) { map.panTo([wp.lat,wp.lon]); selectCard(id); openPopup(wp); }
+  }
+}
+
+function selectCard(id) {
+  document.querySelectorAll('.wp-card').forEach(c => c.classList.remove('selected'));
+  const c = document.getElementById('wpc-'+id);
+  if (c) { c.classList.add('selected'); c.scrollIntoView({behavior:'smooth',block:'nearest'}); }
+}
+
+function updateName(id, val) {
+  const wp = state.waypoints.find(w=>w.id===id);
+  if (!wp) return;
+  wp.name = val.slice(0,40);
+  document.getElementById('nc-'+id).textContent = wp.name.length+'/40';
+  document.querySelector('#wpc-'+id+' .wp-name-display').textContent = wp.name;
+}
+
+function updateComment(id, val) {
+  const wp = state.waypoints.find(w=>w.id===id);
+  if (!wp) return;
+  wp.comment = val.slice(0,600);
+  document.getElementById('cc-'+id).textContent = wp.comment.length+'/600';
+}
+
+async function loadThumb(wp) {
+  if (!wp.photoOptimized) wp.photoOptimized = await optimizePhoto(wp.photoBlob);
+  const img = document.getElementById('thumb-'+wp.id);
+  if (img) img.src = URL.createObjectURL(wp.photoOptimized);
+  const btn = document.getElementById('enl-'+wp.id);
+  if (btn) btn.onclick = () => openModal(URL.createObjectURL(wp.photoOptimized));
+}
+
+// ── AJOUT / RETRAIT PHOTO SUR WAYPOINT EXISTANT ───────
+async function addPhotoToWp(id, file) {
+  if (!file) return;
+  const wp = state.waypoints.find(w => w.id === id);
+  if (!wp) return;
+  toast('Optimisation de la photo…');
+  wp.photoBlob      = file;
+  wp.photoOptimized = await optimizePhoto(file);
+  wp.photoName      = file.name;
+  // Mettre à jour la zone photo sans re-rendre toute la liste
+  const zone = document.getElementById('photo-zone-'+id);
+  if (zone) {
+    zone.innerHTML =
+      `<img class="wp-thumb" id="thumb-${id}" alt="">
+       <div style="display:flex;gap:6px;margin-bottom:8px">
+         <button class="btn-enlarge" style="flex:1" id="enl-${id}">🔍 Agrandir</button>
+         <button class="btn-enlarge" style="flex:1;border-color:var(--alert);color:#e07060" onclick="removePhotoFromWp(${id})">✕ Retirer</button>
+       </div>`;
+    loadThumb(wp);
+  }
+  // Mettre à jour l'icône dans l'en-tête de la carte
+  const icon = document.querySelector(`#wpc-${id} .wp-icon`);
+  if (icon) { icon.classList.add('has-photo'); icon.textContent = '📷'; }
+  saveSession();
+  toast('Photo associée ✓', 'success');
+}
+
+function removePhotoFromWp(id) {
+  const wp = state.waypoints.find(w => w.id === id);
+  if (!wp) return;
+  wp.photoBlob = null; wp.photoOptimized = null; wp.photoName = null;
+  const zone = document.getElementById('photo-zone-'+id);
+  if (zone) {
+    zone.innerHTML =
+      `<label class="wp-add-photo-label" for="photo-input-${id}">
+         📷 Associer une photo
+       </label>
+       <input type="file" id="photo-input-${id}" accept="image/*" style="display:none"
+         onchange="addPhotoToWp(${id}, this.files[0])">`;
+  }
+  const icon = document.querySelector(`#wpc-${id} .wp-icon`);
+  if (icon) { icon.classList.remove('has-photo'); icon.textContent = '📍'; }
+  saveSession();
+  toast('Photo retirée', '');
+}
+
+// ── SUPPRESSION WAYPOINT ─────────────────────────────
+function deleteWp(id) {
+  const wp = state.waypoints.find(w => w.id === id);
+  if (!wp) return;
+  if (wp.marker) map.removeLayer(wp.marker);
+  state.waypoints = state.waypoints.filter(w => w.id !== id);
+  renderList();
+  updateStats();
+  drawElevProfile();
+  saveSession();
+  toast('Waypoint supprimé', '');
+}
+
+// ── DUPLICATION WAYPOINT ──────────────────────────────
+function duplicateWp(id) {
+  const idx = state.waypoints.findIndex(w => w.id === id);
+  if (idx === -1) return;
+  const wp = state.waypoints[idx];
+  const newId = state.waypoints.length
+    ? Math.max(...state.waypoints.map(w => w.id)) + 1 : 0;
+  const newWp = {
+    ...wp,
+    id: newId,
+    name: (wp.name + '_bis').slice(0, 40),
+    marker: null,
+    _optimizedFname: null,
+  };
+  // Insertion juste après le waypoint original
+  state.waypoints.splice(idx + 1, 0, newWp);
+  addMarker(newWp);
+  renderList();
+  updateStats();
+  drawElevProfile();
+  saveSession();
+  toast('Waypoint dupliqué ✓', 'success');
+  setTimeout(() => {
+    const card = document.getElementById('wpc-' + newId);
+    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, 100);
+}
+
+// ── LECTURE EXIF (GPS) POUR LA CRÉATION DE WAYPOINT DEPUIS UNE PHOTO ──
+// Parseur binaire custom, sans dépendance (testé séparément avant intégration).
+function gtExifLireUInt16(view, offset, little) { return view.getUint16(offset, little); }
+function gtExifLireUInt32(view, offset, little) { return view.getUint32(offset, little); }
+const GT_EXIF_TAILLE_PAR_TYPE = { 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 7: 1, 9: 4, 10: 8 };
+
+function gtExifLireEntreeIFD(view, tiffStart, entryOffset, little) {
+  const tag = gtExifLireUInt16(view, entryOffset, little);
+  const type = gtExifLireUInt16(view, entryOffset + 2, little);
+  const count = gtExifLireUInt32(view, entryOffset + 4, little);
+  const tailleUnite = GT_EXIF_TAILLE_PAR_TYPE[type] || 1;
+  const tailleTotale = tailleUnite * count;
+  const dataOffset = tailleTotale <= 4 ? entryOffset + 8 : tiffStart + gtExifLireUInt32(view, entryOffset + 8, little);
+  let valeur;
+  if (type === 2) {
+    const octets = [];
+    for (let i = 0; i < count; i++) octets.push(view.getUint8(dataOffset + i));
+    valeur = String.fromCharCode(...octets).replace(/\0+$/, '');
+  } else if (type === 5 || type === 10) {
+    valeur = [];
+    for (let i = 0; i < count; i++) {
+      const num = type === 5 ? gtExifLireUInt32(view, dataOffset + i * 8, little) : view.getInt32(dataOffset + i * 8, little);
+      const den = type === 5 ? gtExifLireUInt32(view, dataOffset + i * 8 + 4, little) : view.getInt32(dataOffset + i * 8 + 4, little);
+      valeur.push([num, den]);
+    }
+  } else if (type === 3) {
+    const vals = [];
+    for (let i = 0; i < count; i++) vals.push(view.getUint16(dataOffset + i * 2, little));
+    valeur = count === 1 ? vals[0] : vals;
+  } else if (type === 4 || type === 9) {
+    const vals = [];
+    for (let i = 0; i < count; i++) vals.push(type === 4 ? gtExifLireUInt32(view, dataOffset + i * 4, little) : view.getInt32(dataOffset + i * 4, little));
+    valeur = count === 1 ? vals[0] : vals;
+  } else {
+    valeur = gtExifLireUInt32(view, entryOffset + 8, little);
+  }
+  return { tag, type, count, valeur };
+}
+
+function gtExifLireIFD(view, tiffStart, ifdOffset, little) {
+  const nbEntrees = gtExifLireUInt16(view, ifdOffset, little);
+  const entrees = new Map();
+  for (let i = 0; i < nbEntrees; i++) {
+    const { tag, valeur } = gtExifLireEntreeIFD(view, tiffStart, ifdOffset + 2 + i * 12, little);
+    entrees.set(tag, valeur);
+  }
+  return { entrees };
+}
+
+function gtExifRationnelsVersDegresDecimaux(triplet) {
+  const [deg, min, sec] = triplet.map(([num, den]) => (den === 0 ? 0 : num / den));
+  return deg + min / 60 + sec / 3600;
+}
+
+function gtExifTrouverSegmentExif(arrayBuffer) {
+  const view = new DataView(arrayBuffer);
+  if (view.getUint16(0, false) !== 0xffd8) return null;
+  let offset = 2;
+  while (offset < view.byteLength) {
+    const marker = view.getUint16(offset, false);
+    if (marker === 0xffd9) break;
+    if ((marker & 0xff00) !== 0xff00) break;
+    if (marker === 0xffd8 || (marker >= 0xffd0 && marker <= 0xffd7) || marker === 0xff01) { offset += 2; continue; }
+    const length = view.getUint16(offset + 2, false);
+    if (marker === 0xffe1) {
+      const exifHeaderOffset = offset + 4;
+      const estExif = view.getUint32(exifHeaderOffset, false) === 0x45786966 && view.getUint16(exifHeaderOffset + 4, false) === 0x0000;
+      if (estExif) return { view, tiffStart: exifHeaderOffset + 6 };
+    }
+    if (marker === 0xffda) break;
+    offset += 2 + length;
+  }
+  return null;
+}
+
+function gtExifChargerArrayBuffer(fileBlob) {
+  if (fileBlob.arrayBuffer) return fileBlob.arrayBuffer();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsArrayBuffer(fileBlob);
+  });
+}
+
+async function gtExifLireCoordonneesGPS(fileBlob) {
+  const arrayBuffer = await gtExifChargerArrayBuffer(fileBlob);
+  const segment = gtExifTrouverSegmentExif(arrayBuffer);
+  if (!segment) return null;
+  const { view, tiffStart } = segment;
+  const little = view.getUint16(tiffStart, false) === 0x4949;
+  const ifd0Offset = gtExifLireUInt32(view, tiffStart + 4, little);
+  const { entrees: entreesIFD0 } = gtExifLireIFD(view, tiffStart, tiffStart + ifd0Offset, little);
+  const gpsIfdOffsetRelatif = entreesIFD0.get(0x8825);
+  if (gpsIfdOffsetRelatif === undefined) return null;
+  const { entrees: entreesGPS } = gtExifLireIFD(view, tiffStart, tiffStart + gpsIfdOffsetRelatif, little);
+  const latRef = entreesGPS.get(1);
+  const latTriplet = entreesGPS.get(2);
+  const lonRef = entreesGPS.get(3);
+  const lonTriplet = entreesGPS.get(4);
+  if (!latTriplet || !lonTriplet) return null;
+  let lat = gtExifRationnelsVersDegresDecimaux(latTriplet);
+  let lon = gtExifRationnelsVersDegresDecimaux(lonTriplet);
+  if (latRef === 'S') lat = -lat;
+  if (lonRef === 'W') lon = -lon;
+  return { lat, lon };
+}
+
+// ── VOLET CRÉATION : formulaire depuis une photo ──────
+let _creationPhotoFile = null;
+
+async function onCreationPhotoChange(file) {
+  if (!file) return;
+  _creationPhotoFile = file;
+  document.getElementById('creation-file-name').textContent = file.name;
+  document.getElementById('creation-gps-statut').textContent = 'Lecture des données GPS…';
+  document.getElementById('creation-repli-manuel').style.display = 'none';
+
+  let coords = null;
+  try { coords = await gtExifLireCoordonneesGPS(file); } catch (e) { coords = null; }
+
+  if (coords) {
+    document.getElementById('creation-gps-statut').textContent =
+      '📍 Position trouvée : ' + coords.lat.toFixed(5) + ', ' + coords.lon.toFixed(5);
+    ouvrirModalDepuisCreation(coords.lat, coords.lon, file);
+  } else {
+    document.getElementById('creation-gps-statut').textContent = '';
+    document.getElementById('creation-repli-manuel').style.display = 'block';
+  }
+}
+
+function validerCoordonneesManuelles() {
+  const lat = parseFloat(document.getElementById('creation-lat').value);
+  const lon = parseFloat(document.getElementById('creation-lon').value);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+    toast('Coordonnées invalides', 'error');
+    return;
+  }
+  ouvrirModalDepuisCreation(lat, lon, _creationPhotoFile);
+}
+
+function pointerCreationSurCarte() {
+  switchPanel('editor-panel');
+  if (!_addWpMode) toggleAddWpMode();
+}
+
+/**
+ * Ouvre la modale « Nouveau waypoint » existante (celle du clic carte),
+ * pré-remplie avec les coordonnées trouvées (EXIF ou saisie manuelle) et la
+ * photo choisie dans le volet Création — pour ne pas dupliquer la logique
+ * de confirmation (confirmAddWp), déjà éprouvée.
+ */
+function ouvrirModalDepuisCreation(lat, lon, photoFile) {
+  _addWpPending.lat = lat;
+  _addWpPending.lon = lon;
+  _addWpPending.alt = interpolateAlt(lat, lon);
+  _addWpPending.photoFile = photoFile || null;
+  _addWpPending.photoBlob = null;
+  document.getElementById('wp-add-name').value = '';
+  document.getElementById('wp-add-nc').textContent = '0/40';
+  document.getElementById('wp-add-comment').value = '';
+  const thumb = document.getElementById('wp-add-thumb');
+  if (photoFile) {
+    thumb.src = URL.createObjectURL(photoFile);
+    thumb.style.display = 'block';
+    document.getElementById('wp-add-photo-zone').textContent = '✓ ' + photoFile.name;
+  } else {
+    thumb.style.display = 'none';
+    document.getElementById('wp-add-photo-zone').textContent = '📷 Ajouter une photo (optionnel)';
+  }
+  document.getElementById('wp-add-coords').textContent =
+    '🌐 ' + lat.toFixed(6) + ', ' + lon.toFixed(6) + '  ⛰️ ' + Math.round(_addWpPending.alt) + ' m';
+  document.getElementById('wp-add-modal').classList.add('open');
+  setTimeout(() => document.getElementById('wp-add-name').focus(), 100);
+}
+
+// ── AJOUT MANUEL DE WAYPOINT ─────────────────────────
+let _addWpMode = false;
+let _addWpPending = { lat: null, lon: null, photoBlob: null, photoFile: null, alt: 0 };
+
+function toggleAddWpMode() {
+  _addWpMode = !_addWpMode;
+  const btn  = document.getElementById('btn-add-wp');
+  const hint = document.getElementById('add-wp-hint');
+  if (_addWpMode) {
+    btn.classList.add('active');
+    btn.title = 'Annuler';
+    hint.style.display = 'block';
+    map.getContainer().style.cursor = 'crosshair';
+  } else {
+    btn.classList.remove('active');
+    btn.title = 'Ajouter un waypoint';
+    hint.style.display = 'none';
+    map.getContainer().style.cursor = '';
+  }
+}
+
+map.on('click', function(e) {
+  if (!_addWpMode) return;
+  _addWpPending.lat  = e.latlng.lat;
+  _addWpPending.lon  = e.latlng.lng;
+  _addWpPending.alt  = interpolateAlt(e.latlng.lat, e.latlng.lng);
+  _addWpPending.photoBlob = null;
+  _addWpPending.photoFile = null;
+  document.getElementById('wp-add-name').value    = '';
+  document.getElementById('wp-add-nc').textContent = '0/40';
+  document.getElementById('wp-add-comment').value  = '';
+  document.getElementById('wp-add-thumb').style.display = 'none';
+  document.getElementById('wp-add-photo-zone').textContent = '📷 Ajouter une photo (optionnel)';
+  // Repli « Pointer sur la carte » depuis le volet Création : si une photo
+  // avait déjà été choisie là-bas, on la rattache ici plutôt que de la perdre.
+  if (_creationPhotoFile) {
+    _addWpPending.photoFile = _creationPhotoFile;
+    document.getElementById('wp-add-thumb').src = URL.createObjectURL(_creationPhotoFile);
+    document.getElementById('wp-add-thumb').style.display = 'block';
+    document.getElementById('wp-add-photo-zone').textContent = '✓ ' + _creationPhotoFile.name;
+    _creationPhotoFile = null;
+  }
+  document.getElementById('wp-add-coords').textContent =
+    '🌐 ' + e.latlng.lat.toFixed(6) + ', ' + e.latlng.lng.toFixed(6) +
+    '  ⛰️ ' + Math.round(_addWpPending.alt) + ' m';
+  document.getElementById('wp-add-modal').classList.add('open');
+  toggleAddWpMode();
+  setTimeout(() => document.getElementById('wp-add-name').focus(), 100);
+});
+
+document.getElementById('wp-add-name').addEventListener('input', function() {
+  document.getElementById('wp-add-nc').textContent = this.value.length + '/40';
+});
+
+function onAddWpPhoto(file) {
+  if (!file) return;
+  _addWpPending.photoFile = file;
+  const thumb = document.getElementById('wp-add-thumb');
+  thumb.src = URL.createObjectURL(file);
+  thumb.style.display = 'block';
+  document.getElementById('wp-add-photo-zone').textContent = '✓ ' + file.name;
+}
+
+async function confirmAddWp() {
+  const name    = document.getElementById('wp-add-name').value.trim() ||
+                  'Waypoint ' + (state.waypoints.length + 1);
+  const comment = document.getElementById('wp-add-comment').value.trim();
+  const { lat, lon, alt } = _addWpPending;
+  let photoBlob = null, photoName = null;
+  if (_addWpPending.photoFile) {
+    photoBlob = await optimizePhoto(_addWpPending.photoFile);
+    photoName = _addWpPending.photoFile.name;
+  }
+  const id = state.waypoints.length
+    ? Math.max(...state.waypoints.map(w => w.id)) + 1 : 0;
+  const wp = {
+    id, name, lat, lon, alt, comment,
+    photoName, photoBlob, photoOptimized: photoBlob,
+    marker: null, _optimizedFname: null,
+  };
+  state.waypoints.push(wp);
+  addMarker(wp);
+  renderList();
+  updateStats();
+  saveSession();
+  closeAddWpModal();
+  setTimeout(() => {
+    const card = document.getElementById('wpc-' + id);
+    if (card) card.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  }, 150);
+  toast('"' + name + '" ajouté ✓', 'success');
+}
+
+function closeAddWpModal() {
+  document.getElementById('wp-add-modal').classList.remove('open');
+  _addWpPending = { lat:null, lon:null, photoBlob:null, photoFile:null, alt:0 };
+}
+
+function interpolateAlt(lat, lon) {
+  if (!state.trackCoords.length) return 0;
+  let minDist = Infinity, nearestAlt = 0;
+  state.trackCoords.forEach(c => {
+    const d = Math.sqrt((c[0]-lat)**2 + (c[1]-lon)**2);
+    if (d < minDist) { minDist = d; nearestAlt = c[2]||0; }
+  });
+  return nearestAlt;
+}
+
+// ── OPTIMISATION PHOTO ────────────────────────────────
+async function optimizePhoto(blob, maxBytes=500000) {
+  return new Promise(resolve => {
+    const img = new Image();
+    const url = URL.createObjectURL(blob);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement('canvas');
+      let {width:w, height:h} = img;
+      const max = 1600;
+      if (w>max||h>max) { const r=Math.min(max/w,max/h); w=Math.round(w*r); h=Math.round(h*r); }
+      canvas.width=w; canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      let q = 0.85;
+      const attempt = () => {
+        canvas.toBlob(out => {
+          if (!out || out.size<=maxBytes || q<=0.3) { resolve(out||blob); return; }
+          q -= 0.1; attempt();
+        }, 'image/jpeg', q);
+      };
+      attempt();
+    };
+    img.onerror = () => resolve(blob);
+    img.src = url;
+  });
+}
+
+// ── STATS ────────────────────────────────────────────
+function calcElevation() {
+  var coords=state.trackCoords; if(coords.length<2) return {dp:0,dm:0};
+  var raw=coords.map(function(c){return c[2]||0;});
+  var smooth=raw.map(function(_,i){
+    var lo=Math.max(0,i-3),hi=Math.min(raw.length-1,i+3),s=0;
+    for(var j=lo;j<=hi;j++) s+=raw[j]; return s/(hi-lo+1);
+  });
+  var dp=0,dm=0;
+  for(var i=1;i<smooth.length;i++){var d=smooth[i]-smooth[i-1];if(d>1)dp+=d;else if(d<-1)dm+=Math.abs(d);}
+  return {dp:Math.round(dp),dm:Math.round(dm)};
+}
+
+function updateStats() {
+  document.getElementById('stat-wp').textContent = state.waypoints.length;
+  document.getElementById('stat-photos').textContent = state.waypoints.filter(w=>w.photoBlob).length;
+  let d=0;
+  for (let i=1;i<state.trackCoords.length;i++) {
+    const [la1,lo1]=state.trackCoords[i-1], [la2,lo2]=state.trackCoords[i];
+    const R=6371000,r=Math.PI/180,dLa=(la2-la1)*r,dLo=(lo2-lo1)*r;
+    const a=Math.sin(dLa/2)**2+Math.cos(la1*r)*Math.cos(la2*r)*Math.sin(dLo/2)**2;
+    d+=R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  }
+  document.getElementById('stat-dist').textContent = d>0 ? (d/1000).toFixed(1)+' km' : '—';
+  var elev=calcElevation();
+  var elDp=document.getElementById('stat-dp'),elDm=document.getElementById('stat-dm');
+  if(elDp) elDp.textContent=elev.dp>0?'+'+elev.dp+' m':'—';
+  if(elDm) elDm.textContent=elev.dm>0?'-'+elev.dm+' m':'—';
+  if(typeof updateVisiteButtons==='function') updateVisiteButtons();
+}
+
+// ── NAVIGATION ───────────────────────────────────────
+function switchPanel(id) {
+  // Fermer l'overlay de visite s'il est ouvert, pour éviter qu'il bloque l'interface
+  var ov = document.getElementById('visite-overlay');
+  if (ov && ov.style.display !== 'none') { stopVisite(); }
+
+  document.querySelectorAll('.panel').forEach(p=>{p.classList.remove('active');p.style.display='none';});
+  var panel=document.getElementById(id);
+  panel.classList.add('active'); panel.style.display='flex';
+  document.querySelectorAll('.tab-btn').forEach(b=>{
+    b.classList.toggle('active',
+      (id==='editor-panel'&&b.textContent.includes('Édition'))||
+      (id==='creation-panel'&&b.textContent.includes('Création'))||
+      (id==='visite-panel'&&b.textContent.includes('Visite'))||
+      (id==='deploy-panel'&&b.textContent.includes('ploiement')));
+  });
+  if (id==='editor-panel') setTimeout(()=>map.invalidateSize(),100);
+  if (id==='deploy-panel') refreshDeployPanel();
+}
+
+// ── MODAL ────────────────────────────────────────────
+function openModal(src) { document.getElementById('modal-img').src=src; document.getElementById('modal-overlay').classList.add('open'); }
+function closeModal(e) { if(!e||e.target===document.getElementById('modal-overlay')||e.target===document.getElementById('modal-close')) document.getElementById('modal-overlay').classList.remove('open'); }
+
+// ── UTILS ────────────────────────────────────────────
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function sanitize(s) { return String(s).replace(/[^a-zA-Z0-9_-]/g,'_').toLowerCase(); }
+function toast(msg, type='') {
+  const el=document.createElement('div'); el.className='toast'+(type?' '+type:''); el.textContent=msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(()=>el.remove(),3500);
+}
+
+// ═══════════════════════════════════════════════════
+//  VOLET DÉPLOIEMENT
+// ═══════════════════════════════════════════════════
+
+function refreshDeployPanel() {
+  if (!state.rawFileName) return;
+  document.getElementById('di-src').textContent = state.rawFileName;
+  document.getElementById('di-wp').textContent = state.waypoints.length;
+  document.getElementById('di-photos').textContent = state.waypoints.filter(w=>w.photoBlob).length;
+  document.getElementById('di-dist').textContent = document.getElementById('stat-dist').textContent;
+  const layerNames = { osm:'OSM', 'ign-plan':'IGN Plan V2', 'ign-ortho':'IGN BD Ortho', mbtiles:'MBtiles (fond local, non exporté)' };
+  document.getElementById('di-layer').textContent = layerNames[state.mapLayer]||state.mapLayer;
+  document.getElementById('di-folder').textContent = '…';
+  fetchCommune().then(commune => {
+    const folderName = buildFolderName(commune);
+    document.getElementById('di-folder').textContent = folderName;
+    renderTree(folderName);
+  });
+}
+
+function buildFolderName(commune) {
+  const base = sanitize(state.rawFileName) || 'randonnee';
+  return commune ? base+'_'+commune : base;
+}
+
+function renderTree(folderName) {
+  const photos = state.waypoints.filter(w=>w.photoBlob);
+  const lines = photos.length
+    ? photos.map(wp=>'│   ├── 📷 '+(wp.photoName||sanitize(wp.name)+'.jpg')).join('\n')
+    : '│   └── (aucune photo)';
+  document.getElementById('dp-tree').textContent =
+    '📁 '+folderName+'/\n├── 📁 photos/\n'+lines+
+    '\n├── 📄 '+folderName+'.kml'+
+    '\n├── 📄 '+folderName+'.gpx'+
+    '\n└── 🌐 '+folderName+'.html';
+}
+
+async function fetchCommune() {
+  let lat, lon;
+  if (state.trackCoords.length) { lat=state.trackCoords[0][0]; lon=state.trackCoords[0][1]; }
+  else if (state.waypoints.length) { lat=state.waypoints[0].lat; lon=state.waypoints[0].lon; }
+  else return '';
+  try {
+    const r = await fetch('https://nominatim.openstreetmap.org/reverse?lat='+lat+'&lon='+lon+'&format=json&accept-language=fr');
+    const d = await r.json();
+    const a = d.address||{};
+    return sanitize(a.village||a.town||a.city||a.hamlet||a.municipality||'');
+  } catch { return ''; }
+}
+
+function setProgress(key, pct) {
+  document.getElementById('prog-'+key).style.width = pct+'%';
+  document.getElementById('pv-'+key).textContent = pct+'%';
+}
+
+async function generatePackage() {
+  const btn = document.getElementById('btn-download');
+  btn.disabled = true; btn.textContent = '⏳ Génération…';
+  ['photos','kml','gpx','html','zip'].forEach(k=>setProgress(k,0));
+  try {
+    const commune = await fetchCommune();
+    const folderName = buildFolderName(commune);
+    const zip = new JSZip();
+    const folder = zip.folder(folderName);
+    const photosFolder = folder.folder('photos');
+
+    const photoWps = state.waypoints.filter(w=>w.photoBlob);
+    for (let i=0;i<photoWps.length;i++) {
+      const wp = photoWps[i];
+      if (!wp.photoOptimized) wp.photoOptimized = await optimizePhoto(wp.photoBlob);
+      const fname = sanitize(wp.photoName?wp.photoName.replace(/\.[^.]+$/,''):sanitize(wp.name))+'.jpg';
+      wp._optimizedFname = fname;
+      photosFolder.file(fname, wp.photoOptimized);
+      setProgress('photos', Math.round((i+1)/photoWps.length*100));
+    }
+    if (!photoWps.length) setProgress('photos',100);
+
+    const kmlStr = buildKML(folderName);
+    folder.file(folderName+'.kml', kmlStr);
+    setProgress('kml',100);
+
+    const gpxStr = buildGPX();
+    folder.file(folderName+'.gpx', gpxStr);
+    setProgress('gpx',100);
+
+    folder.file(folderName+'.html', buildViewer(folderName, kmlStr, gpxStr));
+    setProgress('html',100);
+
+    const zipBlob = await zip.generateAsync({type:'blob',compression:'DEFLATE'}, m=>setProgress('zip',Math.round(m.percent)));
+    const url = URL.createObjectURL(zipBlob);
+    const a = document.createElement('a'); a.href=url; a.download=folderName+'.zip'; a.click();
+    URL.revokeObjectURL(url);
+    renderTree(folderName);
+    toast('"'+folderName+'.zip" prêt ✓','success');
+  } catch(err) {
+    toast('Erreur : '+err.message,'error'); console.error(err);
+  } finally {
+    btn.disabled=false; btn.textContent='⬇ Télécharger le Package ZIP';
+  }
+}
+
+function buildKML(folderName) {
+  // Échappement pour le texte d'un élément XML (hors CDATA) : seuls &, <
+  // et > doivent l'être. Échapper aussi ' et " n'est pas nécessaire ici
+  // (on n'est jamais dans un attribut) et rend le texte moins lisible.
+  const x = s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // Dans une section CDATA, le texte est pris tel quel : seule la
+  // séquence de terminaison "]]>" doit être neutralisée.
+  const cd = s=>String(s).replace(/]]>/g,']]'+'&gt;');
+  const track = state.trackCoords.length>1
+    ? '<Placemark><name>Tracé</name><Style><LineStyle><color>ff5aad7a</color><width>3</width></LineStyle></Style><LineString><altitudeMode>clampToGround</altitudeMode><coordinates>'+state.trackCoords.map(c=>c[1]+','+c[0]+','+(c[2]||0)).join('\n')+'</coordinates></LineString></Placemark>' : '';
+  const wpts = state.waypoints.map(wp=>{
+    const photoTag = wp._optimizedFname ? '<img src="photos/'+wp._optimizedFname+'" style="max-width:300px"><br>' : '';
+    const descr = (photoTag || wp.comment) ? '<description><![CDATA['+photoTag+cd(wp.comment||'')+']]></description>' : '';
+    const cmt = wp.comment ? '<ExtendedData><Data name="comment"><value>'+x(wp.comment)+'</value></Data></ExtendedData>' : '';
+    return '<Placemark><name>'+x(wp.name)+'</name>'+descr+cmt+'<Point><coordinates>'+wp.lon+','+wp.lat+','+(wp.alt||0)+'</coordinates></Point></Placemark>';
+  }).join('\n');
+  return '<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>'+x(folderName)+'</name>\n'+track+'\n'+wpts+'\n</Document></kml>';
+}
+
+function buildGPX() {
+  const x = s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const wpts = state.waypoints.map(wp=>'<wpt lat="'+wp.lat+'" lon="'+wp.lon+'"><ele>'+(wp.alt||0)+'</ele><name>'+x(wp.name)+'</name>'+(wp.comment?'<desc>'+x(wp.comment)+'</desc>':'')+'</wpt>').join('\n');
+  const trkpts = state.trackCoords.map(c=>'<trkpt lat="'+c[0]+'" lon="'+c[1]+'"><ele>'+(c[2]||0)+'</ele></trkpt>').join('\n');
+  return '<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Marando" xmlns="http://www.topografix.com/GPX/1/1">\n'+wpts+'\n<trk><name>'+x(state.rawFileName)+'</name><trkseg>\n'+trkpts+'\n</trkseg></trk>\n</gpx>';
+}
+
+// ═══════════════════════════════════════════════════
+//  SAUVEGARDE DE LA SESSION EN KMZ AUTONOME
+//  (waypoints + photos + commentaires + tracé, dans un
+//  seul fichier partageable avec d'autres appareils/apps)
+// ═══════════════════════════════════════════════════
+
+function buildSessionKML() {
+  const x = s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const cd = s=>String(s).replace(/]]>/g,']]'+'&gt;');
+  const track = state.trackCoords.length>1
+    ? '<Placemark><name>Tracé</name><Style><LineStyle><color>ff5aad7a</color><width>3</width></LineStyle></Style><LineString><altitudeMode>clampToGround</altitudeMode><coordinates>'+state.trackCoords.map(c=>c[1]+','+c[0]+','+(c[2]||0)).join('\n')+'</coordinates></LineString></Placemark>' : '';
+  const wpts = state.waypoints.map(wp=>{
+    const photoTag = wp._sessionPhotoFname ? '<img src="files/'+wp._sessionPhotoFname+'" width="400" /><br/>' : '';
+    const descr = (photoTag || wp.comment) ? '<description><![CDATA['+photoTag+cd(wp.comment||'')+']]></description>' : '';
+    return '<Placemark><name>'+x(wp.name)+'</name>'+descr+'<Point><coordinates>'+wp.lon+','+wp.lat+','+(wp.alt||0)+'</coordinates></Point></Placemark>';
+  }).join('\n');
+  return '<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>'+x(state.rawFileName||'randonnee')+'</name>\n'+track+'\n'+wpts+'\n</Document></kml>';
+}
+
+async function saveSessionKMZ() {
+  if (!state.waypoints.length) return;
+  const btn = document.getElementById('btn-save-kmz');
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ Génération du KMZ…';
+  try {
+    const zip = new JSZip();
+    const filesFolder = zip.folder('files');
+
+    const photoWps = state.waypoints.filter(w => w.photoBlob);
+    for (let i = 0; i < photoWps.length; i++) {
+      const wp = photoWps[i];
+      if (!wp.photoOptimized) wp.photoOptimized = await optimizePhoto(wp.photoBlob);
+      const fname = sanitize(wp.photoName ? wp.photoName.replace(/\.[^.]+$/, '') : sanitize(wp.name)) + '.jpg';
+      wp._sessionPhotoFname = fname;
+      filesFolder.file(fname, wp.photoOptimized);
+    }
+    state.waypoints.forEach(wp => { if (!wp.photoBlob) wp._sessionPhotoFname = null; });
+
+    zip.file('doc.kml', buildSessionKML());
+
+    const fileName = (sanitize(state.rawFileName) || 'randonnee') + '.kmz';
+    const blob = await zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.google-earth.kmz', compression: 'DEFLATE' });
+
+    if (window.showSaveFilePicker) {
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: fileName,
+          types: [{ description: 'Fichier KMZ', accept: { 'application/vnd.google-earth.kmz': ['.kmz'] } }],
+        });
+        const writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        toast('"' + fileName + '" enregistré ✓', 'success');
+        return;
+      } catch (err) {
+        if (err.name === 'AbortError') { toast('Enregistrement annulé', ''); return; }
+        console.error(err);
+        // repli sur le téléchargement classique
+      }
+    }
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = fileName;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast('"' + fileName + '" téléchargé ✓', 'success');
+  } catch (err) {
+    toast('Erreur lors de la génération du KMZ : ' + err.message, 'error');
+    console.error(err);
+  } finally {
+    btn.disabled = false; btn.textContent = orig;
+  }
+}
+
+function buildViewer(folderName, kmlStr, gpxStr) {
+  const toB64 = str => btoa(unescape(encodeURIComponent(str)));
+  const kmlB64  = toB64(kmlStr);
+  const gpxB64  = toB64(gpxStr);
+  const jsonB64 = toB64(JSON.stringify({name:folderName,waypoints:state.waypoints.map(wp=>({name:wp.name,lat:wp.lat,lon:wp.lon,alt:wp.alt,comment:wp.comment,photo:wp._optimizedFname||null})),track:state.trackCoords},null,2));
+  const wpData   = JSON.stringify(state.waypoints.map(wp=>({name:wp.name,lat:wp.lat,lon:wp.lon,alt:wp.alt,comment:wp.comment,photo:wp._optimizedFname?'photos/'+wp._optimizedFname:null})));
+  const trackData= JSON.stringify(state.trackCoords.map(c=>[c[0],c[1]]));
+  const LAYER    = state.mapLayer;
+
+  return '<!DOCTYPE html>\n<html>\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width,initial-scale=1">\n<title>'+folderName+'</title>\n<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">\n<style>\nbody{margin:0;font-family:system-ui}\n#map{height:100vh}\n.controls{position:absolute;top:10px;left:10px;z-index:1000;background:white;padding:12px 15px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,.2);display:flex;flex-wrap:wrap;gap:6px;max-width:92vw}\n.controls button{padding:10px 16px;border:none;border-radius:5px;cursor:pointer;background:#2d5a1b;color:white;font-size:14px;font-weight:600;white-space:nowrap}\n.controls button:hover{background:#4a7c35}\n.lp-img{width:100%;max-height:170px;object-fit:cover;border-radius:5px;margin-bottom:6px;display:block}\n.lp-enl{width:100%;padding:5px;border-radius:4px;background:#e8f5e9;border:1px solid #4a7c35;color:#2d5a1b;font-size:13px;cursor:pointer;margin-bottom:4px}\n#modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center}\n#modal.open{display:flex}\n#modal img{max-width:92vw;max-height:88vh;border-radius:8px}\n#mx{position:absolute;top:16px;right:16px;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.2);border:none;color:white;font-size:1.1rem;cursor:pointer}\n@media print{.controls{display:none}}\n</style>\n</head>\n<body>\n<div id="map"></div>\n<div class="controls">\n  <button onclick="dl(\''+kmlB64+'\',\''+folderName+'.kml\',\'application/vnd.google-earth.kml+xml\')">📥 KML</button>\n  <button onclick="dl(\''+gpxB64+'\',\''+folderName+'.gpx\',\'application/gpx+xml\')">📥 GPX</button>\n  <button onclick="dl(\''+jsonB64+'\',\''+folderName+'.json\',\'application/json\')">📥 JSON</button>\n  <button onclick="window.print()">🖨️ Imprimer / PDF</button>\n</div>\n<div id="modal" onclick="cm(event)"><button id="mx" onclick="cm()">✕</button><img id="mi" src="" alt=""></div>\n<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>\n<script>\nvar wps='+wpData+';\nvar track='+trackData+';\nvar map=L.map(\'map\');\n(({\'osm\':L.tileLayer(\'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png\',{attribution:\'© OpenStreetMap\',maxZoom:19}),\'ign-plan\':L.tileLayer(\'https://data.geopf.fr/wmts?layer=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&style=normal&tilematrixset=PM&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image%2Fpng&TileMatrix={z}&TileCol={x}&TileRow={y}\',{attribution:\'© IGN\',maxZoom:19}),\'ign-ortho\':L.tileLayer(\'https://data.geopf.fr/wmts?layer=ORTHOIMAGERY.ORTHOPHOTOS&style=normal&tilematrixset=PM&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image%2Fjpeg&TileMatrix={z}&TileCol={x}&TileRow={y}\',{attribution:\'© IGN\',maxZoom:20})})[\''+LAYER+'\']||L.tileLayer(\'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png\')).addTo(map);\nif(track.length>1){var _s=document.createElement(\'style\');_s.textContent=\'@keyframes ma-fw{to{stroke-dashoffset:-21}}.ma-trail{animation:ma-fw .65s linear infinite;stroke-linecap:round;}\'; document.head.appendChild(_s);L.polyline(track,{color:\'#2d5a1b\',weight:6,opacity:.45,interactive:false}).addTo(map);var _r=L.svg({padding:0.5});var pl=L.polyline(track,{color:\'#7aad5a\',weight:4,renderer:_r,interactive:false}).addTo(map);pl.on(\'add\',function(){var e=pl._path;if(e){e.setAttribute(\'stroke-dasharray\',\'12 9\');e.classList.add(\'ma-trail\');}});map.fitBounds(pl.getBounds(),{padding:[40,40]});}else if(wps.length){map.setView([wps[0].lat,wps[0].lon],14);}\nif(track.length<=1&&wps.length>1){map.fitBounds(L.latLngBounds(wps.map(function(w){return[w.lat,w.lon];})),{padding:[40,40]});}\nwps.forEach(function(wp){var p=!!wp.photo;var icon=L.divIcon({className:\'\',html:\'<div style="width:30px;height:30px;border-radius:50% 50% 50% 0;background:\'+(p?\'#5c3d1e\':\'#2d5a1b\')+\';border:2px solid \'+(p?\'#c87040\':\'#7aad5a\')+\';display:flex;align-items:center;justify-content:center;font-size:13px;transform:rotate(-45deg);box-shadow:0 2px 6px rgba(0,0,0,.4)"><span style="transform:rotate(45deg)">\'+(p?\'📷\':\'📍\')+\'</span></div>\',iconSize:[30,30],iconAnchor:[15,30],popupAnchor:[0,-32]});var imgH=wp.photo?\'<img class="lp-img" src="\'+wp.photo+\'"><button class="lp-enl" data-src="\'+wp.photo+\'">🔍 Agrandir</button>\':\'\';;var c=\'<div style="padding:10px;min-width:200px"><h4 style="margin:0 0 8px;color:#2d5a1b">\'+wp.name+\'</h4>\'+imgH+\'<p style="margin:4px 0;font-size:13px;color:#555">🌐 \'+wp.lat.toFixed(6)+\', \'+wp.lon.toFixed(6)+\'</p><p style="margin:4px 0;font-size:13px;color:#555">⛰️ \'+Math.round(wp.alt)+\' m</p>\'+(wp.comment?\'<p style="margin:6px 0;font-size:13px">💬 \'+wp.comment+\'</p>\':\'\')+ \'</div>\';L.marker([wp.lat,wp.lon],{icon:icon}).bindPopup(c,{maxWidth:300}).addTo(map);});\ndocument.addEventListener(\'click\',function(e){if(e.target.classList.contains(\'lp-enl\')&&e.target.dataset.src)om(e.target.dataset.src);});\nfunction dl(b64,name,mime){var a=document.createElement(\'a\');a.href=\'data:\'+mime+\';base64,\'+b64;a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);}\nfunction om(src){document.getElementById(\'mi\').src=src;document.getElementById(\'modal\').classList.add(\'open\');}\nfunction cm(e){if(!e||e.target===document.getElementById(\'modal\')||e.target===document.getElementById(\'mx\'))document.getElementById(\'modal\').classList.remove(\'open\');}\n<\/script>\n</body>\n</html>';
+}
+
+
+// ═══════════════════════════════════════════════════
+//  PROFIL ALTIMÉTRIQUE
+// ═══════════════════════════════════════════════════
+
+let elevMarker = null;
+
+function drawElevProfile() {
+  const canvas = document.getElementById('elev-canvas');
+  const panel  = document.getElementById('elev-panel');
+  if (!canvas || !state.trackCoords.length) return;
+
+  // Adapter la taille du canvas à son conteneur
+  canvas.width  = panel.clientWidth;
+  canvas.height = panel.clientHeight;
+  const W = canvas.width, H = canvas.height;
+  const ctx = canvas.getContext('2d');
+
+  const coords = state.trackCoords;
+  const alts   = coords.map(c => c[2] || 0);
+  const minAlt = Math.min(...alts);
+  const maxAlt = Math.max(...alts);
+  const range  = maxAlt - minAlt || 1;
+
+  // Marges
+  const ml = 44, mr = 10, mt = 14, mb = 22;
+  const gW = W - ml - mr, gH = H - mt - mb;
+
+  // Fond
+  ctx.fillStyle = '#0d1a09';
+  ctx.fillRect(0, 0, W, H);
+
+  // Grille horizontale
+  const steps = 4;
+  ctx.strokeStyle = 'rgba(255,255,255,.06)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= steps; i++) {
+    const y = mt + gH - (i / steps) * gH;
+    ctx.beginPath(); ctx.moveTo(ml, y); ctx.lineTo(ml + gW, y); ctx.stroke();
+    const label = Math.round(minAlt + (i / steps) * range);
+    ctx.fillStyle = '#8a8070';
+    ctx.font = '9px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(label + 'm', ml - 4, y + 3);
+  }
+
+  // Calcul des distances cumulées
+  const dists = [0];
+  for (let i = 1; i < coords.length; i++) {
+    const [la1,lo1] = coords[i-1], [la2,lo2] = coords[i];
+    const R=6371000, r=Math.PI/180;
+    const dLa=(la2-la1)*r, dLo=(lo2-lo1)*r;
+    const a=Math.sin(dLa/2)**2+Math.cos(la1*r)*Math.cos(la2*r)*Math.sin(dLo/2)**2;
+    dists.push(dists[i-1] + R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)));
+  }
+  const totalDist = dists[dists.length - 1] || 1;
+
+  // Axe X — distances
+  ctx.fillStyle = '#8a8070'; ctx.font = '9px monospace'; ctx.textAlign = 'center';
+  for (let i = 0; i <= 4; i++) {
+    const x = ml + (i / 4) * gW;
+    const d = (i / 4) * totalDist / 1000;
+    ctx.fillText(d.toFixed(1) + 'km', x, H - 4);
+  }
+
+  // Profil — remplissage dégradé
+  const grad = ctx.createLinearGradient(0, mt, 0, mt + gH);
+  grad.addColorStop(0, 'rgba(74,124,53,.7)');
+  grad.addColorStop(1, 'rgba(74,124,53,.05)');
+  ctx.beginPath();
+  coords.forEach((c, i) => {
+    const x = ml + (dists[i] / totalDist) * gW;
+    const y = mt + gH - ((c[2] - minAlt) / range) * gH;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  // Fermer le polygone
+  ctx.lineTo(ml + gW, mt + gH);
+  ctx.lineTo(ml, mt + gH);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Ligne du profil
+  ctx.beginPath();
+  coords.forEach((c, i) => {
+    const x = ml + (dists[i] / totalDist) * gW;
+    const y = mt + gH - ((c[2] - minAlt) / range) * gH;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = '#7aad5a';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Stocker pour l'interactivité
+  canvas._dists   = dists;
+  canvas._coords  = coords;
+  canvas._alts    = alts;
+  canvas._minAlt  = minAlt;
+  canvas._range   = range;
+  canvas._totalDist = totalDist;
+  canvas._ml = ml; canvas._mr = mr; canvas._mt = mt; canvas._mb = mb;
+}
+
+function initElevInteraction() {
+  const canvas  = document.getElementById('elev-canvas');
+  const tooltip = document.getElementById('elev-tooltip');
+  const cursor  = document.getElementById('elev-cursor');
+  if (!canvas) return;
+
+  function onMove(e) {
+    if (!canvas._dists) return;
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const px = clientX - rect.left;
+    const { _ml, _mr, _mt, _mb, _dists, _coords, _alts, _minAlt, _range, _totalDist } = canvas;
+    const gW = canvas.width - _ml - _mr;
+    const gH = canvas.height - _mt - _mb;
+    if (px < _ml || px > _ml + gW) { tooltip.style.display='none'; cursor.style.display='none'; return; }
+
+    const ratio = (px - _ml) / gW;
+    const targetDist = ratio * _totalDist;
+
+    // Trouver le point le plus proche
+    let idx = 0;
+    for (let i = 1; i < _dists.length; i++) {
+      if (Math.abs(_dists[i] - targetDist) < Math.abs(_dists[idx] - targetDist)) idx = i;
+    }
+
+    const c   = _coords[idx];
+    const alt = Math.round(c[2] || 0);
+    const dist= (_dists[idx] / 1000).toFixed(2);
+
+    tooltip.style.display = 'block';
+    tooltip.textContent   = dist + ' km — ' + alt + ' m';
+    cursor.style.display  = 'block';
+    cursor.style.left     = px + 'px';
+
+    // Déplacer / créer le marqueur sur la carte
+    if (!elevMarker) {
+      elevMarker = L.circleMarker([c[0], c[1]], {
+        radius: 6, color: '#fff', weight: 2,
+        fillColor: '#7aad5a', fillOpacity: 1
+      }).addTo(map);
+    } else {
+      elevMarker.setLatLng([c[0], c[1]]);
+    }
+  }
+
+  function onLeave() {
+    tooltip.style.display = 'none';
+    cursor.style.display  = 'none';
+    if (elevMarker) { map.removeLayer(elevMarker); elevMarker = null; }
+  }
+
+  canvas.addEventListener('mousemove', onMove);
+  canvas.addEventListener('touchmove', onMove, { passive: true });
+  canvas.addEventListener('mouseleave', onLeave);
+  canvas.addEventListener('touchend', onLeave);
+}
+
+// Redessiner si la fenêtre change de taille
+window.addEventListener('resize', () => {
+  if (state.trackCoords.length) drawElevProfile();
+});
+
+// ═══════════════════════════════════════════════════
+//  SAUVEGARDE DE SESSION (localStorage)
+// ═══════════════════════════════════════════════════
+
+
+// ═══════════════════════════════════════════════════
+//  IndexedDB helpers (persistance photos)
+// ═══════════════════════════════════════════════════
+const IDB_NAME='randonneur8_db', IDB_STORE='photos';
+function openIDB(){return new Promise((res,rej)=>{const r=indexedDB.open(IDB_NAME,1);r.onupgradeneeded=e=>e.target.result.createObjectStore(IDB_STORE);r.onsuccess=e=>res(e.target.result);r.onerror=e=>rej(e.target.error);});}
+async function idbSet(k,v){try{const db=await openIDB();return new Promise((res,rej)=>{const tx=db.transaction(IDB_STORE,'readwrite');tx.objectStore(IDB_STORE).put(v,k);tx.oncomplete=res;tx.onerror=rej;});}catch(e){}}
+async function idbGet(k){try{const db=await openIDB();return new Promise((res,rej)=>{const tx=db.transaction(IDB_STORE,'readonly');const r=tx.objectStore(IDB_STORE).get(k);r.onsuccess=()=>res(r.result);r.onerror=rej;});}catch(e){return null;}}
+async function idbClear(){try{const db=await openIDB();return new Promise((res,rej)=>{const tx=db.transaction(IDB_STORE,'readwrite');tx.objectStore(IDB_STORE).clear();tx.oncomplete=res;tx.onerror=rej;});}catch(e){}}
+
+// ═══════════════════════════════════════════════════
+//  MOTEUR DE VISITE
+// ═══════════════════════════════════════════════════
+let _vMap=null,_vTravM=null,_vWpM=null,_vIdx=0;
+
+// ═══════════════════════════════════════════════════
+//  SÉLECTEUR DE VOIX TTS
+// ═══════════════════════════════════════════════════
+
+let _selectedVoice = null;       // SpeechSynthesisVoice choisie
+let _voicesPrefKey = 'randonneur8_voice';
+
+// Récupérer la meilleure voix française disponible
+function getBestFrVoice() {
+  if (_selectedVoice) return _selectedVoice;
+  const voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+  // Priorités : voix locale FR > en ligne FR > toute voix FR
+  const local   = voices.filter(v => v.lang.startsWith('fr') && !v.localService === false);
+  const online  = voices.filter(v => v.lang.startsWith('fr') && v.localService === false);
+  const frAll   = voices.filter(v => v.lang.startsWith('fr'));
+  // Préférer les voix "naturelles" Google/Microsoft si disponibles
+  const neural  = frAll.filter(v => /neural|natural|google|enhanced/i.test(v.name));
+  return neural[0] || local[0] || frAll[0] || null;
+}
+
+function openVoiceSelector() {
+  if (!window.speechSynthesis) { toast('Synthèse vocale non disponible sur ce navigateur', 'error'); return; }
+  const panel = document.getElementById('voice-selector-panel');
+  const list  = document.getElementById('voice-list');
+  list.innerHTML = '';
+
+  // S'assurer que les voix sont chargées
+  const voices = window.speechSynthesis.getVoices()
+    .filter(v => v.lang.startsWith('fr') || v.lang.startsWith('FR'));
+
+  if (voices.length === 0) {
+    list.innerHTML = '<p style="color:var(--stone);font-size:.85rem;padding:10px 0;">Aucune voix française trouvée sur cet appareil.<br>Installez les voix TTS dans les paramètres système.</p>';
+  } else {
+    // Récupérer la préférence sauvegardée
+    const savedName = localStorage.getItem(_voicesPrefKey);
+
+    voices.forEach(v => {
+      const isSelected = _selectedVoice ? v.name === _selectedVoice.name
+                                        : v.name === savedName || (!savedName && v === getBestFrVoice());
+      const item = document.createElement('div');
+      item.className = 'voice-item' + (isSelected ? ' selected' : '');
+      item.innerHTML = `
+        <div>
+          <div class="voice-item-name">${v.name}</div>
+          <div class="voice-item-lang">${v.lang} ${v.localService ? '· locale' : '· en ligne'}</div>
+        </div>
+        <button class="voice-preview-btn" data-voice="${v.name}">▶ Écouter</button>
+      `;
+      item.addEventListener('click', (e) => {
+        if (e.target.classList.contains('voice-preview-btn')) return;
+        _selectedVoice = v;
+        localStorage.setItem(_voicesPrefKey, v.name);
+        document.querySelectorAll('.voice-item').forEach(i => i.classList.remove('selected'));
+        item.classList.add('selected');
+        toast('Voix sélectionnée : ' + v.name, 'success');
+      });
+      item.querySelector('.voice-preview-btn').addEventListener('click', () => {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance('Bonjour, je suis votre guide pour cette randonnée.');
+        u.voice = v; u.lang = v.lang; u.rate = 0.92;
+        window.speechSynthesis.speak(u);
+      });
+      list.appendChild(item);
+    });
+  }
+  panel.classList.add('open');
+}
+
+function closeVoiceSelector() {
+  document.getElementById('voice-selector-panel').classList.remove('open');
+  window.speechSynthesis && window.speechSynthesis.cancel();
+}
+
+function loadVoicePreference() {
+  if (!window.speechSynthesis) return;
+  const savedName = localStorage.getItem(_voicesPrefKey);
+  if (!savedName) { _selectedVoice = null; return; }
+  function tryLoad() {
+    const v = window.speechSynthesis.getVoices().find(v => v.name === savedName);
+    if (v) _selectedVoice = v;
+  }
+  tryLoad();
+  window.speechSynthesis.addEventListener('voiceschanged', tryLoad);
+}
+
+// Remplacer l'appel à getVoices().find() dans visiteReadComment et vSpeak
+function getTTSVoice() {
+  return _selectedVoice || getBestFrVoice();
+}
+
+// ═══════════════════════════════════════════════════
+//  DÉPLACEMENT DE WAYPOINTS (drag souris + tactile)
+// ═══════════════════════════════════════════════════
+
+let _dragWpId   = null;   // id du waypoint en cours de déplacement
+let _dragMarker = null;   // marqueur Leaflet temporaire pendant le drag
+
+function enableWaypointDrag(wp) {
+  if (!wp.marker) return;
+  const marker = wp.marker;
+
+  // ── Curseur visuel ────────────────────────────────
+  const el = marker.getElement();
+  if (el) el.style.cursor = 'grab';
+
+  // ── Souris (desktop) ─────────────────────────────
+  marker.on('mousedown', function(e) {
+    if (e.originalEvent.button !== 0) return;
+    L.DomEvent.stopPropagation(e);
+    startWpDrag(wp, e.latlng);
+  });
+
+  // ── Tactile (mobile) ─────────────────────────────
+  marker.on('touchstart', function(e) {
+    if (e.originalEvent.touches.length !== 1) return;
+    L.DomEvent.stopPropagation(e);
+    const touch = e.originalEvent.touches[0];
+    const latlng = map.containerPointToLatLng(
+      L.point(touch.clientX - map.getContainer().getBoundingClientRect().left,
+              touch.clientY - map.getContainer().getBoundingClientRect().top)
+    );
+    startWpDrag(wp, latlng);
+  });
+}
+
+function startWpDrag(wp, startLatLng) {
+  _dragWpId = wp.id;
+  map.dragging.disable();
+
+  // Marqueur fantôme semi-transparent pendant le drag
+  if (_dragMarker) map.removeLayer(_dragMarker);
+  _dragMarker = L.circleMarker(startLatLng, {
+    radius: 14, color: '#d4f0a0', weight: 2,
+    fillColor: '#7aad5a', fillOpacity: 0.5,
+    interactive: false
+  }).addTo(map);
+
+  // Rendre le marqueur d'origine semi-transparent
+  if (wp.marker) {
+    const el = wp.marker.getElement();
+    if (el) el.style.opacity = '0.4';
+  }
+
+  function onMove(e) {
+    const latlng = e.latlng || map.containerPointToLatLng(
+      L.point(e.originalEvent.touches[0].clientX - map.getContainer().getBoundingClientRect().left,
+              e.originalEvent.touches[0].clientY - map.getContainer().getBoundingClientRect().top)
+    );
+    if (_dragMarker) _dragMarker.setLatLng(latlng);
+  }
+
+  function onEnd(e) {
+    map.off('mousemove', onMove);
+    map.off('mouseup',   onEnd);
+    map.off('touchmove', onMove);
+    map.off('touchend',  onEnd);
+    map.dragging.enable();
+
+    const latlng = _dragMarker ? _dragMarker.getLatLng() : null;
+    if (_dragMarker) { map.removeLayer(_dragMarker); _dragMarker = null; }
+
+    if (latlng) {
+      const w = state.waypoints.find(w => w.id === _dragWpId);
+      if (w) {
+        w.lat = latlng.lat;
+        w.lon = latlng.lng;
+        // Mettre à jour la position du marqueur principal
+        if (w.marker) {
+          w.marker.setLatLng(latlng);
+          const el = w.marker.getElement();
+          if (el) el.style.opacity = '1';
+        }
+        saveSession();
+        toast('Waypoint déplacé ✓', 'success');
+      }
+    } else {
+      // Annulé : remettre l'opacité
+      const w = state.waypoints.find(w => w.id === _dragWpId);
+      if (w && w.marker) {
+        const el = w.marker.getElement();
+        if (el) el.style.opacity = '1';
+      }
+    }
+    _dragWpId = null;
+  }
+
+  map.on('mousemove', onMove);
+  map.on('mouseup',   onEnd);
+  map.on('touchmove', onMove);
+  map.on('touchend',  onEnd);
+}
+
+// ═══════════════════════════════════════════════════
+//  AIDE IA — Générateur de prompt
+// ═══════════════════════════════════════════════════
+
+const _aiaState = { ia: null, len: null, niv: null, sty: null, wpId: null };
+
+function openAideIa(wpId) {
+  _aiaState.wpId = wpId;
+  const wp = state.waypoints.find(w => w.id === wpId);
+  const ctx = document.getElementById('aia-wp-context');
+  ctx.textContent = wp ? `Waypoint : « ${wp.name} »${wp.comment ? ' — commentaire existant : ' + wp.comment.slice(0,60) + (wp.comment.length > 60 ? '…' : '') : ''}` : '';
+  // Réinitialiser le panneau
+  document.querySelectorAll('.aia-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('aia-prompt-wrap').classList.remove('visible');
+  document.getElementById('aia-response-wrap').classList.remove('visible');
+  document.getElementById('aia-response-input').value = '';
+  document.getElementById('aia-prompt-box').textContent = '';
+  _aiaState.ia = _aiaState.len = _aiaState.niv = _aiaState.sty = null;
+  updateAiaGenerateBtn();
+  document.getElementById('aide-ia-overlay').classList.add('open');
+}
+
+function closeAideIa() {
+  document.getElementById('aide-ia-overlay').classList.remove('open');
+}
+
+function handleAideIaOverlayClick(e) {
+  if (e.target === document.getElementById('aide-ia-overlay')) closeAideIa();
+}
+
+function aiaSelect(btn, group) {
+  // Désactiver tous les boutons du groupe
+  const attr = { ia: 'data-aia-ia', len: 'data-aia-len', niv: 'data-aia-niv', sty: 'data-aia-sty' };
+  document.querySelectorAll(`[${attr[group]}]`).forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _aiaState[group] = btn.dataset['aia' + group.charAt(0).toUpperCase() + group.slice(1)]
+    || btn.dataset[`aia${group}`];
+  // Récupérer la valeur depuis le bon attribut data
+  if (group === 'ia')  _aiaState.ia  = btn.dataset.aiaIa;
+  if (group === 'len') _aiaState.len = btn.dataset.aiaLen;
+  if (group === 'niv') _aiaState.niv = btn.dataset.aiaNiv;
+  if (group === 'sty') _aiaState.sty = btn.dataset.aiaSty;
+  updateAiaGenerateBtn();
+  // Masquer le prompt précédent si on change les options
+  document.getElementById('aia-prompt-wrap').classList.remove('visible');
+  document.getElementById('aia-response-wrap').classList.remove('visible');
+}
+
+function updateAiaGenerateBtn() {
+  const ready = _aiaState.ia && _aiaState.len && _aiaState.niv && _aiaState.sty;
+  document.getElementById('aia-btn-generate').disabled = !ready;
+}
+
+function aiaGenerate() {
+  const wp = state.waypoints.find(w => w.id === _aiaState.wpId);
+  if (!wp) return;
+
+  const styleMap = {
+    'académique':  'un style académique rigoureux, avec un vocabulaire précis et une structure argumentée',
+    'original':    'un style créatif et original, avec des formulations inventives et une approche inattendue',
+    'anecdotique': 'un style narratif et anecdotique, illustré par une histoire ou un exemple concret',
+  };
+  const niveauMap = {
+    'grand public': 'accessible à un large public, sans jargon technique',
+    'averti':       'destiné à un public averti, avec un vocabulaire spécialisé si pertinent',
+  };
+
+  const contextLine = wp.comment
+    ? `Ce waypoint s'intitule "${wp.name}". Un commentaire existant (à améliorer ou remplacer) est : "${wp.comment}".`
+    : `Ce waypoint s'intitule "${wp.name}".`;
+
+  const prompt =
+`Tu es un expert en rédaction de commentaires de randonnée.
+
+Rédige un commentaire en français pour un waypoint photographique de randonnée.
+
+Contexte : ${contextLine}
+
+Contraintes :
+- Longueur : environ ${_aiaState.len} caractères (±10 %)
+- Niveau : ${niveauMap[_aiaState.niv]}
+- Style : ${styleMap[_aiaState.sty]}
+- Le commentaire doit être fluide, sans titre ni introduction explicite
+- Réponds UNIQUEMENT avec le commentaire, sans explication ni meta-commentaire`;
+
+  document.getElementById('aia-prompt-box').textContent = prompt;
+  document.getElementById('aia-hint-ia').textContent = _aiaState.ia;
+  document.getElementById('aia-prompt-wrap').classList.add('visible');
+  document.getElementById('aia-response-wrap').classList.add('visible');
+}
+
+async function aiaCopyPrompt() {
+  const text = document.getElementById('aia-prompt-box').textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+    const btn = document.getElementById('aia-btn-copy');
+    const orig = btn.textContent;
+    btn.textContent = '✅ Copié !';
+    setTimeout(() => { btn.textContent = orig; }, 2000);
+    toast('Prompt copié — collez-le dans ' + _aiaState.ia, 'success');
+  } catch {
+    toast('Échec de la copie', 'error');
+  }
+}
+
+function aiaApply() {
+  const response = document.getElementById('aia-response-input').value.trim();
+  if (!response) { toast('Collez d\'abord la réponse de l\'IA', 'error'); return; }
+  const limited = response.slice(0, 600);
+  const wp = state.waypoints.find(w => w.id === _aiaState.wpId);
+  if (!wp) return;
+  wp.comment = limited;
+  // Mettre à jour le textarea et le compteur dans la fiche
+  const ta = document.getElementById('cmt-' + _aiaState.wpId);
+  const cc = document.getElementById('cc-'  + _aiaState.wpId);
+  if (ta) ta.value = limited;
+  if (cc) cc.textContent = limited.length + '/600';
+  saveSession();
+  closeAideIa();
+  toast('Commentaire appliqué ✓', 'success');
+}
+
+function updateVisiteButtons(){
+  const ok=state.waypoints.length>0;
+  const bs=document.getElementById('btn-start-visite');
+  const be=document.getElementById('btn-export-visite');
+  if(bs) bs.disabled=!ok;
+  if(be) be.disabled=!ok;
+  if(ok){
+    const st=document.getElementById('visite-status');
+    if(st) st.innerHTML='<strong style="color:var(--sage)">'+state.waypoints.length+' waypoints</strong> — '+state.waypoints.filter(w=>w.photoBlob).length+' avec photo.';
+    const lst=document.getElementById('visite-wp-list');
+    if(lst){lst.textContent=state.waypoints.map((w,i)=>(i+1)+'. '+w.name+(w.photoBlob?' [photo]':'')+(w.comment?' [note]':'')).join('\n');const sec=document.getElementById('visite-wp-list-section');if(sec)sec.style.display='block';}
+  }
+}
+
+function initVisiteMap(){
+  if(_vMap){_vMap.invalidateSize();return;}
+  _vMap=L.map('visite-map',{zoomControl:false,attributionControl:false});
+  const td={'osm':L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}),'ign-plan':L.tileLayer('https://data.geopf.fr/wmts?layer=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&style=normal&tilematrixset=PM&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image%2Fpng&TileMatrix={z}&TileCol={x}&TileRow={y}',{maxZoom:19}),'ign-ortho':L.tileLayer('https://data.geopf.fr/wmts?layer=ORTHOIMAGERY.ORTHOPHOTOS&style=normal&tilematrixset=PM&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image%2Fjpeg&TileMatrix={z}&TileCol={x}&TileRow={y}',{maxZoom:20})};
+  if(state.mapLayer==='mbtiles' && state.mbtiles.db){ td.mbtiles=new MBTilesLayer({maxZoom:22,minZoom:0}); }
+  (td[state.mapLayer||'osm']||td['osm']).addTo(_vMap);
+  if(state.trackCoords.length>1){
+    const lls=state.trackCoords.map(c=>[c[0],c[1]]);
+    L.polyline(lls,{color:'#1a3a0f',weight:8,opacity:.85,interactive:false}).addTo(_vMap);
+    L.polyline(lls,{color:'#3d7a28',weight:5,opacity:.6,interactive:false}).addTo(_vMap);
+    const ants=L.polyline(lls,{color:'#d4f0a0',weight:3,interactive:false}).addTo(_vMap);
+    function applyDash(){
+      const el=ants._path;
+      if(el){ el.setAttribute('stroke-dasharray','10 12'); el.classList.add('ma-trail'); }
+      else requestAnimationFrame(applyDash);
+    }
+    applyDash();
+    _vMap.on('zoomend moveend baselayerchange', ()=>requestAnimationFrame(applyDash));
+    _vMap.fitBounds(ants.getBounds(),{padding:[20,20]});
+  } else if(state.waypoints.length>1){
+    // Pas de tracé continu (ex. waypoints issus de photo2waypoint) : on cadre sur les waypoints
+    _vMap.fitBounds(L.latLngBounds(state.waypoints.map(w=>[w.lat,w.lon])),{padding:[30,30]});
+  } else if(state.waypoints.length===1){
+    _vMap.setView([state.waypoints[0].lat,state.waypoints[0].lon],15);
+  } else {
+    _vMap.setView([46.5,2.5],6);
+  }
+}
+
+// ── Ouverture / fermeture de l'overlay ────────────────────────
+function startVisite(){
+  if(!state.waypoints.length) return;
+  _vIdx=0;
+  resetVisitePhotoZoom();
+  document.getElementById('visite-overlay').style.display='flex';
+  setTimeout(()=>{ initVisiteMap(); _vMap.invalidateSize(); vShowSlide(_vIdx); },80);
+  // Precharger les voix TTS (Android : getVoices() peut etre vide au depart)
+  if(window.speechSynthesis){
+    window.speechSynthesis.getVoices();
+    window.speechSynthesis.addEventListener('voiceschanged', function(){
+      window.speechSynthesis.getVoices();
+    });
+  }
+}
+
+function stopVisite(){
+  window.speechSynthesis && window.speechSynthesis.cancel();
+  document.getElementById('visite-overlay').style.display='none';
+  resetVisitePhotoZoom();
+  if(_vTravM){_vMap.removeLayer(_vTravM);_vTravM=null;}
+  if(_vWpM){_vMap.removeLayer(_vWpM);_vWpM=null;}
+}
+
+// ── Agrandissement de la photo / réduction de la carte (visite) ──
+let _visitePhotoZoomLocked = false;
+function _setVisiteMapWrapZoomed(zoomed){
+  const ov = document.getElementById('visite-overlay');
+  const mapWrap = document.getElementById('visite-map-wrap');
+  if (ov) ov.classList.toggle('photo-zoomed', zoomed);
+  // Le style inline "flex:0 0 38vh" posé sur #visite-map-wrap l'emporte sur
+  // la règle CSS externe : on doit donc modifier flex-basis directement en JS.
+  if (mapWrap) mapWrap.style.flexBasis = zoomed ? '9vh' : '38vh';
+}
+function resetVisitePhotoZoom(){
+  _visitePhotoZoomLocked = false;
+  _setVisiteMapWrapZoomed(false);
+  const btn = document.getElementById('visite-zoom-btn');
+  if (btn) btn.textContent = '⛶';
+}
+function toggleVisitePhotoZoom(){
+  _visitePhotoZoomLocked = !_visitePhotoZoomLocked;
+  _setVisiteMapWrapZoomed(_visitePhotoZoomLocked);
+  const btn = document.getElementById('visite-zoom-btn');
+  if (btn) btn.textContent = _visitePhotoZoomLocked ? '⤢' : '⛶';
+  setTimeout(()=>{ _vMap && _vMap.invalidateSize(); }, 340);
+}
+// Sur un appareil avec souris, un simple survol agrandit temporairement la photo
+function visitePhotoHoverIn(){
+  if (_visitePhotoZoomLocked) return;
+  _setVisiteMapWrapZoomed(true);
+  setTimeout(()=>{ _vMap && _vMap.invalidateSize(); }, 340);
+}
+function visitePhotoHoverOut(){
+  if (_visitePhotoZoomLocked) return;
+  _setVisiteMapWrapZoomed(false);
+  setTimeout(()=>{ _vMap && _vMap.invalidateSize(); }, 340);
+}
+
+// ── Affichage d'une étape, avec animation optionnelle depuis la précédente ──
+function vShowSlide(i, fromIdx){
+  const wp=state.waypoints[i], total=state.waypoints.length;
+  document.getElementById('visite-prog-txt').textContent=(i+1)+' / '+total;
+  document.getElementById('visite-prog-fill').style.width=((i+1)/total*100)+'%';
+  document.getElementById('visite-wp-name').textContent=wp.name;
+  document.getElementById('visite-wp-comment').textContent=wp.comment||'';
+
+  const ph=document.getElementById('visite-photo'),np=document.getElementById('visite-no-photo');
+  if(wp.photoBlob){ph.src=URL.createObjectURL(wp.photoBlob);ph.style.display='block';np.style.display='none';}
+  else{ph.style.display='none';ph.src='';np.style.display='block';}
+
+  if(_vWpM) _vMap.removeLayer(_vWpM);
+  _vWpM=L.circleMarker([wp.lat,wp.lon],{radius:9,color:'#d4f0a0',weight:3,fillColor:'#7aad5a',fillOpacity:1}).addTo(_vMap);
+
+  if(typeof fromIdx==='number' && fromIdx!==i){
+    vAnimateTo(fromIdx, wp);
+  } else {
+    _vMap.flyTo([wp.lat,wp.lon],15,{duration:.6});
+  }
+
+  window.speechSynthesis && window.speechSynthesis.cancel();
+  document.getElementById('visite-btn-prev').disabled = (i===0);
+  document.getElementById('visite-btn-next').disabled = (i===total-1);
+}
+
+// ── Navigation manuelle ────────────────────────────────────────
+function visiteNext(){
+  if(_vIdx>=state.waypoints.length-1) return;
+  const prev=_vIdx; _vIdx++;
+  vShowSlide(_vIdx, prev);
+}
+function visitePrev(){
+  if(_vIdx<=0) return;
+  const prev=_vIdx; _vIdx--;
+  vShowSlide(_vIdx, prev);
+}
+
+// ── Lecture du commentaire sur clic ─────────────────────────────
+function visiteReadComment(){
+  if(!window.speechSynthesis) return;
+  const wp=state.waypoints[_vIdx];
+  const txt=(wp.comment||wp.name||'').trim();
+  if(!txt) return;
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.resume();
+  const u=new SpeechSynthesisUtterance(txt);
+  const _v=getTTSVoice(); u.lang=_v?_v.lang:'fr-FR'; u.rate=0.92;
+  if(_v) u.voice=_v;
+  const btn=document.getElementById('visite-btn-tts');
+  btn.textContent='Lecture...'; btn.disabled=true;
+  function done(){ btn.textContent='Lire le commentaire'; btn.disabled=false; }
+  u.onend=done; u.onerror=done;
+  window.speechSynthesis.speak(u);
+}
+
+// ── Animation du marqueur le long du tracé entre deux étapes (1.5s) ──
+function vAnimateTo(fromIdx, targetWp){
+  if(state.trackCoords.length<2){ _vMap.flyTo([targetWp.lat,targetWp.lon],15,{duration:.6}); return; }
+  const lls=state.trackCoords.map(c=>[c[0],c[1]]);
+  const a=state.waypoints[fromIdx], b=targetWp;
+  let ni=0,nd=Infinity;
+  lls.forEach((ll,i)=>{const d=Math.hypot(ll[0]-b.lat,ll[1]-b.lon);if(d<nd){nd=d;ni=i;}});
+  let pi=0,pd=Infinity;
+  lls.forEach((ll,i)=>{const d=Math.hypot(ll[0]-a.lat,ll[1]-a.lon);if(d<pd){pd=d;pi=i;}});
+  const seg = pi<=ni ? lls.slice(pi,ni+1) : lls.slice(ni,pi+1).slice().reverse();
+  if(seg.length<2){ _vMap.flyTo([b.lat,b.lon],15,{duration:.6}); return; }
+
+  // Cadrer la vue sur le segment entier (une seule fois, sans animation pendant le déplacement)
+  _vMap.fitBounds(L.latLngBounds(seg), {padding:[30,30], animate:true, duration:.4});
+
+  const DUR=1500, start=performance.now();
+  if(_vTravM) _vMap.removeLayer(_vTravM);
+  _vTravM=L.circleMarker(seg[0],{radius:7,color:'#fff',weight:2,fillColor:'#d4f0a0',fillOpacity:1}).addTo(_vMap);
+
+  function step(now){
+    const t=Math.min((now-start)/DUR,1);
+    const pos=t*(seg.length-1), i0=Math.floor(pos), i1=Math.min(i0+1,seg.length-1), f=pos-i0;
+    _vTravM.setLatLng([seg[i0][0]+(seg[i1][0]-seg[i0][0])*f, seg[i0][1]+(seg[i1][1]-seg[i0][1])*f]);
+    if(t<1) requestAnimationFrame(step);
+    else { _vMap.flyTo([b.lat,b.lon],15,{duration:.5}); }
+  }
+  requestAnimationFrame(step);
+}
+
+// ═══════════════════════════════════════════════════
+//  EXPORT HTML VISITE
+// ═══════════════════════════════════════════════════
+async function exportVisite(){
+  if(!state.waypoints.length) return;
+  toast('Generation du diaporama...');
+  async function b64(blob){if(!blob)return null;return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(blob);});}
+  const slides=await Promise.all(state.waypoints.map(async wp=>({name:wp.name,comment:wp.comment||'',lat:wp.lat,lon:wp.lon,photo:wp.photoBlob?await b64(wp.photoBlob):null})));
+  const trackData=JSON.stringify(state.trackCoords.map(c=>[c[0],c[1]]));
+  const slidesData=JSON.stringify(slides);
+  const title=state.rawFileName||'Visite';
+  const LAYER=state.mapLayer;
+  const css='@keyframes ma-fw{to{stroke-dashoffset:-22}}.ma-trail-export{stroke-linecap:round;animation:ma-fw .55s linear infinite;}*{box-sizing:border-box;margin:0;padding:0}html{height:100%}body{background:#000;font-family:system-ui;color:#f0ebe0;height:100dvh;overflow:hidden;display:flex;flex-direction:column}#vmap-wrap{flex:0 0 38vh;position:relative;min-height:0;transition:flex-basis .32s ease}body.photo-zoomed #vmap-wrap{flex-basis:9vh}#vmap{width:100%;height:100%}#hud{position:absolute;top:0;left:0;right:0;background:linear-gradient(rgba(0,0,0,.7),transparent);padding:8px 14px;display:flex;align-items:center;gap:10px;z-index:500}#prog-txt{font-family:monospace;font-size:.72rem;color:#b8d4a0;flex-shrink:0}#prog-bar{flex:1;height:3px;background:rgba(255,255,255,.15);border-radius:2px;overflow:hidden}#prog-fill{height:100%;background:#7aad5a;border-radius:2px;transition:width .4s}#photo-wrap{flex:1 1 auto;min-height:0;position:relative;background:#0a0f07;display:flex;align-items:center;justify-content:center;overflow:hidden;transition:flex-basis .32s ease}#slide-photo{max-width:100%;max-height:100%;object-fit:contain;display:none;cursor:pointer}#no-photo{font-size:5rem;opacity:.15;cursor:pointer}#zoom-btn{position:absolute;top:8px;right:10px;z-index:520;width:32px;height:32px;border-radius:50%;border:none;background:rgba(0,0,0,.45);color:#b8d4a0;font-size:.95rem;cursor:pointer}#zoom-btn:hover{background:rgba(0,0,0,.7);color:#fff}#info-bar{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.92));padding:14px 16px;max-height:45%}#wp-name{font-family:monospace;font-size:.95rem;font-weight:700;color:#7aad5a;margin-bottom:3px}#wp-comment{font-size:.78rem;color:#b8d4a0;line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}#controls{flex:0 0 auto;display:flex;gap:8px;justify-content:center;padding:12px 10px;padding-bottom:calc(12px + env(safe-area-inset-bottom));background:#0d1a09;border-top:1px solid rgba(255,255,255,.08)}.ctrl-btn{padding:13px 18px;border-radius:24px;border:none;font-size:.82rem;font-weight:600;cursor:pointer;font-family:system-ui;-webkit-tap-highlight-color:transparent}.ctrl-btn:disabled{opacity:.35;cursor:default}#btn-next,#btn-prev{background:rgba(255,255,255,.14);color:#b8d4a0;min-width:80px}#btn-tts{background:rgba(74,124,53,.9);color:#f8f5ee;flex:1;max-width:200px}';
+  const jsMain=`var slides=${slidesData};var track=${trackData};
+var idx=0;
+var vmap=L.map('vmap',{zoomControl:false,attributionControl:false});
+var _tl={'osm':L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}),'ign-plan':L.tileLayer('https://data.geopf.fr/wmts?layer=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&style=normal&tilematrixset=PM&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image%2Fpng&TileMatrix={z}&TileCol={x}&TileRow={y}',{maxZoom:19}),'ign-ortho':L.tileLayer('https://data.geopf.fr/wmts?layer=ORTHOIMAGERY.ORTHOPHOTOS&style=normal&tilematrixset=PM&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image%2Fjpeg&TileMatrix={z}&TileCol={x}&TileRow={y}',{maxZoom:20})};
+(_tl['${LAYER}']||_tl['osm']).addTo(vmap);
+if(track.length>1){
+  var tl=L.polyline(track,{color:'#1a3a0f',weight:8,opacity:.85}).addTo(vmap);
+  L.polyline(track,{color:'#3d7a28',weight:5,opacity:.6}).addTo(vmap);
+  var antsLine=L.polyline(track,{color:'#d4f0a0',weight:3,className:'ma-trail-export'}).addTo(vmap);
+  function applyDash(){
+    var el=antsLine._path;
+    if(el){ el.setAttribute('stroke-dasharray','10 12'); el.classList.add('ma-trail-export'); }
+    else requestAnimationFrame(applyDash);
+  }
+  applyDash();
+  // Reappliquer apres tout changement de couche/zoom : Leaflet peut recreer le <path>
+  vmap.on('zoomend moveend baselayerchange', function(){ requestAnimationFrame(applyDash); });
+  vmap.fitBounds(tl.getBounds(),{padding:[16,16]});
+} else if(slides.length>1){
+  // Pas de trace continue (ex. waypoints issus de photo2waypoint) : on cadre sur les points
+  vmap.fitBounds(L.latLngBounds(slides.map(function(s){return [s.lat,s.lon];})),{padding:[24,24]});
+} else if(slides.length===1){
+  vmap.setView([slides[0].lat,slides[0].lon],15);
+} else {
+  vmap.setView([46.5,2.5],6);
+}
+
+document.getElementById('splash').style.display='none';
+vmap.invalidateSize();
+showSlide(0);
+
+// Precharger les voix TTS : sur Android/Chrome, getVoices() peut etre vide
+// au premier appel tant que l'evenement voiceschanged n'a pas ete recu.
+if(window.speechSynthesis){
+  window.speechSynthesis.getVoices();
+  window.speechSynthesis.addEventListener('voiceschanged', function(){
+    window.speechSynthesis.getVoices();
+  });
+}
+
+// ── Affichage d'un slide : carte + photo + texte, sans animation ni TTS auto ──
+var wpM=null, travM=null;
+
+// ── Animation du marqueur le long du trace entre deux etapes ──
+function animateTo(fromIdx, toIdx, targetWp){
+  if(track.length<2){ vmap.flyTo([targetWp.lat,targetWp.lon],15,{duration:.6}); return; }
+  var a=slides[fromIdx], b=targetWp;
+  var ni=0,nd=Infinity;
+  track.forEach(function(ll,i){var d=Math.hypot(ll[0]-b.lat,ll[1]-b.lon);if(d<nd){nd=d;ni=i;}});
+  var pi=0,pd=Infinity;
+  track.forEach(function(ll,i){var d=Math.hypot(ll[0]-a.lat,ll[1]-a.lon);if(d<pd){pd=d;pi=i;}});
+  var seg = pi<=ni ? track.slice(pi,ni+1) : track.slice(ni,pi+1).slice().reverse();
+  if(seg.length<2){ vmap.flyTo([b.lat,b.lon],15,{duration:.6}); return; }
+
+  // Afficher la vue d'ensemble du segment pendant l'animation
+  // (pas de panTo() par frame — trop instable sur Android)
+  var bounds = L.latLngBounds(seg);
+  vmap.fitBounds(bounds, {padding:[30,30], animate:true, duration:.4});
+
+  if(travM) vmap.removeLayer(travM);
+  travM = L.circleMarker(seg[0], {radius:7,color:'#fff',weight:2,fillColor:'#d4f0a0',fillOpacity:1}).addTo(vmap);
+
+  var DUR=1500, start=performance.now();
+  function step(now){
+    var t=Math.min((now-start)/DUR,1);
+    var pos=t*(seg.length-1), i0=Math.floor(pos), i1=Math.min(i0+1,seg.length-1), f=pos-i0;
+    // Déplacer uniquement le marqueur, sans bouger la carte
+    travM.setLatLng([seg[i0][0]+(seg[i1][0]-seg[i0][0])*f, seg[i0][1]+(seg[i1][1]-seg[i0][1])*f]);
+    if(t<1) requestAnimationFrame(step);
+    else {
+      // Animation terminée : recentrer sur la destination
+      vmap.flyTo([b.lat,b.lon],15,{duration:.6});
+    }
+  }
+  requestAnimationFrame(step);
+}
+
+function showSlide(i, fromIdx){
+  var s=slides[i];
+  document.getElementById('prog-txt').textContent=(i+1)+' / '+slides.length;
+  document.getElementById('prog-fill').style.width=((i+1)/slides.length*100)+'%';
+  document.getElementById('wp-name').textContent=s.name;
+  document.getElementById('wp-comment').textContent=s.comment;
+  var ph=document.getElementById('slide-photo'),np=document.getElementById('no-photo');
+  if(s.photo){ph.src=s.photo;ph.style.display='block';np.style.display='none';}
+  else{ph.style.display='none';np.style.display='block';}
+  if(wpM)vmap.removeLayer(wpM);
+  wpM=L.circleMarker([s.lat,s.lon],{radius:9,color:'#d4f0a0',weight:3,fillColor:'#7aad5a',fillOpacity:1}).addTo(vmap);
+  if(typeof fromIdx==='number' && fromIdx!==i){
+    animateTo(fromIdx, i, s);
+  } else {
+    vmap.flyTo([s.lat,s.lon],15,{duration:.6});
+  }
+  if(window.speechSynthesis)window.speechSynthesis.cancel();
+  document.getElementById('btn-prev').disabled = (i===0);
+  document.getElementById('btn-next').disabled = (i===slides.length-1);
+}
+
+// ── Navigation manuelle ───────────────────────────────────────
+function go(dir){
+  var next=idx+dir;
+  if(next<0||next>=slides.length)return;
+  var prev=idx;
+  idx=next;
+  showSlide(idx, prev);
+}
+
+// ── Lecture du commentaire a la demande, sur clic ─────────────
+function readComment(){
+  if(!window.speechSynthesis)return;
+  var s=slides[idx];
+  var txt=(s.comment||s.name||'').trim();
+  if(!txt)return;
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.resume();
+  var u=new SpeechSynthesisUtterance(txt);
+  u.lang='fr-FR';u.rate=0.92;
+  var fr=window.speechSynthesis.getVoices().find(function(v){return v.lang&&v.lang.startsWith('fr');});
+  if(fr)u.voice=fr;
+  var btn=document.getElementById('btn-tts');
+  btn.textContent='Lecture...';
+  btn.disabled=true;
+  function done(){btn.textContent='Lire le commentaire';btn.disabled=false;}
+  u.onend=done; u.onerror=done;
+  window.speechSynthesis.speak(u);
+}
+
+document.addEventListener('keydown',function(e){if(e.key==='ArrowRight')go(1);else if(e.key==='ArrowLeft')go(-1);});
+
+// ── Agrandissement de la photo / reduction de la carte ─────────
+var zoomLocked=false;
+function toggleZoom(){
+  zoomLocked=!zoomLocked;
+  document.body.classList.toggle('photo-zoomed',zoomLocked);
+  document.getElementById('zoom-btn').innerHTML=zoomLocked?'&#10530;':'&#9974;';
+  setTimeout(function(){vmap.invalidateSize();},340);
+}
+function photoHoverIn(){
+  if(zoomLocked)return;
+  document.body.classList.add('photo-zoomed');
+  setTimeout(function(){vmap.invalidateSize();},340);
+}
+function photoHoverOut(){
+  if(zoomLocked)return;
+  document.body.classList.remove('photo-zoomed');
+  setTimeout(function(){vmap.invalidateSize();},340);
+}`;
+  const lsrc='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+  const html='<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>'+title+' - Visite</title><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><style>'+css+'</style></head>'
+    +'<body><div id="splash" style="display:none"></div>'
+    +'<div id="vmap-wrap"><div id="vmap"></div><div id="hud"><span id="prog-txt">1 / '+slides.length+'</span><div id="prog-bar"><div id="prog-fill" style="width:0%"></div></div></div></div>'
+    +'<div id="photo-wrap" onmouseenter="photoHoverIn()" onmouseleave="photoHoverOut()"><img id="slide-photo" src="" alt="" onclick="toggleZoom()"><div id="no-photo" onclick="toggleZoom()">~</div><button id="zoom-btn" onclick="toggleZoom()" title="Agrandir / reduire la photo">&#9974;</button><div id="info-bar"><div id="wp-name"></div><div id="wp-comment"></div></div>'
+    +'</div>'
+    +'<div id="controls"><button class="ctrl-btn" id="btn-prev" onclick="go(-1)">&laquo; Prec.</button><button class="ctrl-btn" id="btn-tts" onclick="readComment()">Lire le commentaire</button><button class="ctrl-btn" id="btn-next" onclick="go(1)">Suiv. &raquo;</button></div>'
+    +'<scr'+'ipt src="'+lsrc+'"></scr'+'ipt>'
+    +'<scr'+'ipt>'+jsMain+'</scr'+'ipt>'
+    +'</body></html>';
+  const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=(state.rawFileName||'visite')+'-visite.html';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  toast('Diaporama exporte', 'success');
+}
+
+const SESSION_KEY = 'randonneur8_session';
+
+// Sauvegarder après chaque modification significative
+async function saveSession() {
+  if (!state.rawFileName) return;
+  try {
+    const data = {
+      rawFileName: state.rawFileName,
+      mapLayer: state.mapLayer,
+      trackCoords: state.trackCoords,
+      waypoints: state.waypoints.map(wp => ({
+        id: wp.id, name: wp.name, lat: wp.lat, lon: wp.lon,
+        alt: wp.alt, comment: wp.comment,
+        photoName: wp.photoName, hasPhoto: !!wp.photoBlob,
+      })),
+      savedAt: new Date().toISOString(),
+    };
+    localStorage.setItem(SESSION_KEY, JSON.stringify(data));
+    await idbClear();
+    for (const wp of state.waypoints) {
+      if (wp.photoBlob) await idbSet('photo_'+wp.id, wp.photoOptimized||wp.photoBlob);
+    }
+  } catch(e) {}
+}
+
+async function loadSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (!data.rawFileName) return;
+
+    // Restaurer l'état de base (sans blobs photo — l'utilisateur devra recharger le KMZ pour les photos)
+    state.rawFileName = data.rawFileName;
+    state.mapLayer    = data.mapLayer || 'osm';
+    state.trackCoords = data.trackCoords || [];
+    state.waypoints   = (data.waypoints || []).map(wp => ({
+      ...wp,
+      photoBlob: null, photoOptimized: null, marker: null, _optimizedFname: null,
+    }));
+    for (const wp of state.waypoints) {
+      if (wp.hasPhoto) { const b=await idbGet('photo_'+wp.id); if(b){wp.photoBlob=b;wp.photoOptimized=b;} }
+    }
+
+    document.getElementById('file-name-display').textContent = data.rawFileName + ' (session restaurée)';
+
+    // Restaurer la couche de carte
+    if (layers[state.mapLayer]) {
+      Object.values(layers).forEach(l => { if (map.hasLayer(l)) map.removeLayer(l); });
+      layers[state.mapLayer].addTo(map);
+      document.querySelectorAll('.map-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.map-btn').forEach(b => {
+        if (b.textContent.toLowerCase().includes(state.mapLayer.replace('ign-','').replace('osm','osm'))) b.classList.add('active');
+      });
+    }
+
+    // Afficher le tracé
+    if (state.trackCoords.length > 1) {
+      const pl = addMarchingAntsTrack(state.trackCoords.map(c=>[c[0],c[1]]));
+      map.fitBounds(pl.getBounds(), { padding:[40,40] });
+    }
+
+    // Afficher les marqueurs
+    state.waypoints.forEach(addMarker);
+    renderList();
+    updateStats();
+    drawElevProfile();
+
+    document.getElementById('btn-download').disabled = false;
+    updateExportButtons();
+    const badge = document.getElementById('session-badge');
+    badge.style.display = 'block';
+    badge.textContent = '💾 Session du ' + new Date(data.savedAt).toLocaleString('fr-FR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) + ' restaurée';
+    setTimeout(() => { badge.style.display = 'none'; }, 5000);
+  } catch(e) { localStorage.removeItem(SESSION_KEY); }
+}
+
+function clearSession() {
+  localStorage.removeItem(SESSION_KEY);
+}
+
+// Hooks pour déclencher la sauvegarde automatique
+const _origParseKML = parseKML;
+parseKML = function(txt, mode) {
+  _origParseKML(txt, mode);
+  drawElevProfile();
+  saveSession();
+};
+
+const _origUpdateName = updateName;
+updateName = function(id, val) {
+  _origUpdateName(id, val);
+  saveSession();
+};
+
+const _origUpdateComment = updateComment;
+updateComment = function(id, val) {
+  _origUpdateComment(id, val);
+  saveSession();
+};
+
+// Initialisation au démarrage
+window.addEventListener('load', async () => {
+  initElevInteraction();
+  await loadSession();
+  loadVoicePreference();
+});
+
+// ── FILE HANDLER (ouverture depuis l'OS via file_handlers) ───────
+if ('launchQueue' in window) {
+  window.launchQueue.setConsumer(async launchParams => {
+    if (!launchParams.files || !launchParams.files.length) return;
+    const fileHandle = launchParams.files[0];
+    const file = await fileHandle.getFile();
+    if (/\.(kmz|kml)$/i.test(file.name)) loadKMZ(file, 'replace');
+  });
+}
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+
+</script>
 </body>
 </html>
