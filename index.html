@@ -215,6 +215,24 @@ html, body { height: 100%; overflow: hidden; font-family: 'Outfit', sans-serif; 
 #creation-file-name { margin-top: 8px; font-size: .72rem; color: var(--mist); font-family: 'Space Mono', monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #creation-gps-statut { margin-top: 14px; font-size: .78rem; color: var(--stone); font-family: 'Space Mono', monospace; text-align: center; min-height: 1.2em; }
 #creation-repli-manuel { display: none; margin-top: 14px; }
+
+#creation-verif { display: none; margin-top: 16px; }
+#creation-thumb {
+  width: 100%; max-height: 220px; object-fit: contain;
+  background: rgba(0,0,0,.15); border-radius: 6px; margin-bottom: 10px; display: none;
+}
+#creation-mini-carte { height: 200px; border-radius: 8px; margin-bottom: 8px; }
+#creation-segmented-fond {
+  display: flex; border: 1px solid var(--fern); border-radius: 20px;
+  overflow: hidden; margin-bottom: 14px;
+}
+#creation-segmented-fond .segment {
+  flex: 1; background: transparent; border: none; border-right: 1px solid var(--fern);
+  color: var(--sage); font-family: 'Outfit', sans-serif; font-size: .75rem;
+  padding: 6px 4px; cursor: pointer;
+}
+#creation-segmented-fond .segment:last-child { border-right: none; }
+#creation-segmented-fond .segment.active { background: var(--fern); color: var(--cream); }
 .creation-repli-texte { font-size: .78rem; color: var(--stone); margin-bottom: 8px; }
 .creation-repli-row { display: flex; gap: 8px; margin-bottom: 8px; }
 .creation-repli-row .form-input { flex: 1; }
@@ -514,6 +532,27 @@ html, body { height: 100%; overflow: hidden; font-family: 'Outfit', sans-serif; 
         <div class="creation-repli-row">
           <button class="btn-confirm" onclick="validerCoordonneesManuelles()">✓ Valider ces coordonnées</button>
           <button class="btn-cancel" onclick="pointerCreationSurCarte()">🗺️ Pointer sur la carte</button>
+        </div>
+      </div>
+
+      <div id="creation-verif">
+        <img id="creation-thumb" src="" alt="">
+        <div id="creation-mini-carte"></div>
+        <div id="creation-segmented-fond">
+          <button type="button" class="segment active" onclick="definirFondCreation('osm', this)">OSM</button>
+          <button type="button" class="segment" onclick="definirFondCreation('ign-plan', this)">IGN Plan</button>
+          <button type="button" class="segment" onclick="definirFondCreation('ign-ortho', this)">IGN Ortho</button>
+        </div>
+        <label class="form-label">Nom</label>
+        <input class="form-input" id="creation-nom" maxlength="40" placeholder="Nom du waypoint…">
+        <div class="char-count" id="creation-nc">0/40</div>
+        <label class="form-label" style="margin-top:10px;">Commentaire</label>
+        <textarea class="form-input" id="creation-commentaire" rows="3" maxlength="600" placeholder="Description…"></textarea>
+        <div class="creation-repli-row" style="margin-top:14px;">
+          <button class="btn-confirm" onclick="ajouterWaypointCreation()">➕ Ajouter à la liste</button>
+        </div>
+        <div class="creation-repli-row">
+          <button class="btn-cancel" id="creation-btn-kmz" onclick="enregistrerWaypointCreationKMZ()">💾 Enregistrer en KMZ</button>
         </div>
       </div>
     </div>
@@ -1448,6 +1487,11 @@ async function gtExifLireCoordonneesGPS(fileBlob) {
 
 // ── VOLET CRÉATION : formulaire depuis une photo ──────
 let _creationPhotoFile = null;
+let _creationPending = null; // { lat, lon, alt, photoFile }
+let _creationMap = null;
+let _creationMarker = null;
+let _creationLayers = null;
+let _creationFond = 'osm';
 
 async function onCreationPhotoChange(file) {
   if (!file) return;
@@ -1455,6 +1499,7 @@ async function onCreationPhotoChange(file) {
   document.getElementById('creation-file-name').textContent = file.name;
   document.getElementById('creation-gps-statut').textContent = 'Lecture des données GPS…';
   document.getElementById('creation-repli-manuel').style.display = 'none';
+  document.getElementById('creation-verif').style.display = 'none';
 
   let coords = null;
   try { coords = await gtExifLireCoordonneesGPS(file); } catch (e) { coords = null; }
@@ -1462,7 +1507,7 @@ async function onCreationPhotoChange(file) {
   if (coords) {
     document.getElementById('creation-gps-statut').textContent =
       '📍 Position trouvée : ' + coords.lat.toFixed(5) + ', ' + coords.lon.toFixed(5);
-    ouvrirModalDepuisCreation(coords.lat, coords.lon, file);
+    afficherVerificationCreation(coords.lat, coords.lon, file);
   } else {
     document.getElementById('creation-gps-statut').textContent = '';
     document.getElementById('creation-repli-manuel').style.display = 'block';
@@ -1476,7 +1521,7 @@ function validerCoordonneesManuelles() {
     toast('Coordonnées invalides', 'error');
     return;
   }
-  ouvrirModalDepuisCreation(lat, lon, _creationPhotoFile);
+  afficherVerificationCreation(lat, lon, _creationPhotoFile);
 }
 
 function pointerCreationSurCarte() {
@@ -1485,33 +1530,152 @@ function pointerCreationSurCarte() {
 }
 
 /**
- * Ouvre la modale « Nouveau waypoint » existante (celle du clic carte),
- * pré-remplie avec les coordonnées trouvées (EXIF ou saisie manuelle) et la
- * photo choisie dans le volet Création — pour ne pas dupliquer la logique
- * de confirmation (confirmAddWp), déjà éprouvée.
+ * Affiche le bloc de vérification dans le volet Création lui-même (photo en
+ * entier, mini-carte avec choix de fond OSM/IGN Plan/IGN Ortho pour vérifier
+ * la position, formulaire nom/commentaire) — reprend ce que proposait
+ * photo2waypoint, qui manquait dans la première intégration.
  */
-function ouvrirModalDepuisCreation(lat, lon, photoFile) {
-  _addWpPending.lat = lat;
-  _addWpPending.lon = lon;
-  _addWpPending.alt = interpolateAlt(lat, lon);
-  _addWpPending.photoFile = photoFile || null;
-  _addWpPending.photoBlob = null;
-  document.getElementById('wp-add-name').value = '';
-  document.getElementById('wp-add-nc').textContent = '0/40';
-  document.getElementById('wp-add-comment').value = '';
-  const thumb = document.getElementById('wp-add-thumb');
+function afficherVerificationCreation(lat, lon, photoFile) {
+  _creationPending = { lat, lon, alt: interpolateAlt(lat, lon), photoFile: photoFile || null };
+
+  document.getElementById('creation-nom').value = '';
+  document.getElementById('creation-nc').textContent = '0/40';
+  document.getElementById('creation-commentaire').value = '';
+
+  const thumb = document.getElementById('creation-thumb');
   if (photoFile) {
     thumb.src = URL.createObjectURL(photoFile);
     thumb.style.display = 'block';
-    document.getElementById('wp-add-photo-zone').textContent = '✓ ' + photoFile.name;
   } else {
     thumb.style.display = 'none';
-    document.getElementById('wp-add-photo-zone').textContent = '📷 Ajouter une photo (optionnel)';
   }
-  document.getElementById('wp-add-coords').textContent =
-    '🌐 ' + lat.toFixed(6) + ', ' + lon.toFixed(6) + '  ⛰️ ' + Math.round(_addWpPending.alt) + ' m';
-  document.getElementById('wp-add-modal').classList.add('open');
-  setTimeout(() => document.getElementById('wp-add-name').focus(), 100);
+
+  document.getElementById('creation-verif').style.display = 'block';
+  setTimeout(() => afficherCarteVerificationCreation(lat, lon), 0);
+}
+
+function creerCouchesCreation() {
+  return {
+    osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }),
+    'ign-plan': L.tileLayer('https://data.geopf.fr/wmts?layer=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&style=normal&tilematrixset=PM&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image%2Fpng&TileMatrix={z}&TileCol={x}&TileRow={y}', { attribution: '© IGN', maxZoom: 19 }),
+    'ign-ortho': L.tileLayer('https://data.geopf.fr/wmts?layer=ORTHOIMAGERY.ORTHOPHOTOS&style=normal&tilematrixset=PM&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image%2Fjpeg&TileMatrix={z}&TileCol={x}&TileRow={y}', { attribution: '© IGN', maxZoom: 20 }),
+  };
+}
+
+function afficherCarteVerificationCreation(lat, lon) {
+  if (!_creationMap) {
+    _creationMap = L.map('creation-mini-carte');
+    _creationLayers = creerCouchesCreation();
+    _creationLayers[_creationFond].addTo(_creationMap);
+  }
+  _creationMap.invalidateSize();
+  _creationMap.setView([lat, lon], 16);
+  if (_creationMarker) _creationMap.removeLayer(_creationMarker);
+  _creationMarker = L.marker([lat, lon]).addTo(_creationMap);
+}
+
+function definirFondCreation(nom, btn) {
+  _creationFond = nom;
+  if (_creationMap && _creationLayers) {
+    Object.values(_creationLayers).forEach(l => { if (_creationMap.hasLayer(l)) _creationMap.removeLayer(l); });
+    _creationLayers[nom].addTo(_creationMap);
+  }
+  document.querySelectorAll('#creation-segmented-fond .segment').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+document.getElementById('creation-nom').addEventListener('input', function() {
+  document.getElementById('creation-nc').textContent = this.value.length + '/40';
+});
+
+/**
+ * Ajoute le waypoint en cours de création à la liste — réutilise confirmAddWp()
+ * telle quelle (photo optimisée, id, marqueur, session…) en lui fournissant
+ * les mêmes champs qu'elle lit d'ordinaire dans la modale, sans l'ouvrir.
+ */
+async function ajouterWaypointCreation() {
+  if (!_creationPending) return;
+  _addWpPending.lat = _creationPending.lat;
+  _addWpPending.lon = _creationPending.lon;
+  _addWpPending.alt = _creationPending.alt;
+  _addWpPending.photoFile = _creationPending.photoFile;
+  document.getElementById('wp-add-name').value = document.getElementById('creation-nom').value;
+  document.getElementById('wp-add-comment').value = document.getElementById('creation-commentaire').value;
+  await confirmAddWp();
+  reinitialiserFormulaireCreation();
+}
+
+/**
+ * Enregistre le waypoint en cours de création en KMZ autonome (un seul
+ * waypoint, photo + commentaire), indépendamment de son ajout ou non à la
+ * liste — fonctionnalité de photo2waypoint qui manquait dans la première
+ * intégration.
+ */
+async function enregistrerWaypointCreationKMZ() {
+  if (!_creationPending) return;
+  const btn = document.getElementById('creation-btn-kmz');
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ Génération…';
+  try {
+    const nom = document.getElementById('creation-nom').value.trim() || 'Waypoint';
+    const commentaire = document.getElementById('creation-commentaire').value.trim();
+    const zip = new JSZip();
+    let photoTag = '';
+    if (_creationPending.photoFile) {
+      const photoOpt = await optimizePhoto(_creationPending.photoFile);
+      const fname = sanitize(nom) + '.jpg';
+      zip.folder('files').file(fname, photoOpt);
+      photoTag = '<img src="files/' + fname + '" width="400" /><br/>';
+    }
+    const x = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const cd = s => String(s).replace(/]]>/g, ']]' + '&gt;');
+    const descr = (photoTag || commentaire) ? '<description><![CDATA[' + photoTag + cd(commentaire) + ']]></description>' : '';
+    const kml = '<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><n>' + x(nom) + '</n>\n<Placemark><n>' + x(nom) + '</n>' + descr + '<Point><coordinates>' + _creationPending.lon + ',' + _creationPending.lat + ',' + (_creationPending.alt || 0) + '</coordinates></Point></Placemark>\n</Document></kml>';
+    zip.file('doc.kml', kml);
+
+    const fileName = sanitize(nom) + '.kmz';
+    const blob = await zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.google-earth.kmz', compression: 'DEFLATE' });
+
+    if (window.showSaveFilePicker) {
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: fileName,
+          types: [{ description: 'Fichier KMZ', accept: { 'application/vnd.google-earth.kmz': ['.kmz'] } }],
+        });
+        const w = await handle.createWritable();
+        await w.write(blob);
+        await w.close();
+        toast('KMZ enregistré ✓', 'success');
+        return;
+      } catch (e) {
+        if (e && e.name === 'AbortError') return; // annulé par l'utilisateur
+        // sinon : API indisponible, repli sur le téléchargement classique ci-dessous
+      }
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast('KMZ téléchargé ✓', 'success');
+  } catch (e) {
+    toast('Erreur export KMZ : ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = orig;
+  }
+}
+
+function reinitialiserFormulaireCreation() {
+  _creationPending = null;
+  _creationPhotoFile = null;
+  document.getElementById('creation-photo-input').value = '';
+  document.getElementById('creation-file-name').textContent = 'Aucune photo choisie';
+  document.getElementById('creation-gps-statut').textContent = '';
+  document.getElementById('creation-repli-manuel').style.display = 'none';
+  document.getElementById('creation-verif').style.display = 'none';
+  document.getElementById('creation-lat').value = '';
+  document.getElementById('creation-lon').value = '';
 }
 
 // ── AJOUT MANUEL DE WAYPOINT ─────────────────────────
