@@ -91,6 +91,13 @@ html, body { height: 100%; overflow: hidden; font-family: 'Outfit', sans-serif; 
 }
 .wp-card:hover { border-color: var(--fern); }
 .wp-card.selected { border-color: var(--sage); background: rgba(74,124,53,.14); }
+.wp-card.wp-dragging { cursor: grabbing; box-shadow: 0 10px 26px rgba(0,0,0,.45); opacity: .96; position: relative; z-index: 50; }
+.wp-drag-handle {
+  cursor: grab; touch-action: none; -webkit-tap-highlight-color: transparent;
+  color: var(--stone); font-size: 1rem; padding: 4px 6px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.wp-drag-handle:active { cursor: grabbing; color: var(--sage); }
 .wp-card-header { display: flex; align-items: center; gap: 8px; padding: 8px 10px; }
 .wp-icon { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: .85rem; flex-shrink: 0; background: var(--moss); }
 .wp-icon.has-photo { background: var(--bark); }
@@ -434,6 +441,77 @@ html, body { height: 100%; overflow: hidden; font-family: 'Outfit', sans-serif; 
 #visite-zoom-btn:hover { background: rgba(0,0,0,.7); color: var(--snow); }
 #visite-photo, #visite-no-photo { cursor: pointer; }
 
+/* ── VOLET GÉNÉRATION MBTILES (porté d'ign2mbt) ─────────────── */
+#mbgen-sidebar {
+  width: var(--sidebar-w); flex-shrink: 0; background: #0f1a10;
+  border-right: 1px solid #2e4a2e; display: flex; flex-direction: column;
+  overflow-y: auto; font-family: 'Space Mono', monospace; color: #d4e8d4;
+}
+.mbgen-section { padding: 12px 14px; border-bottom: 1px solid #2e4a2e; }
+.mbgen-section-title { font-size: .65rem; letter-spacing: .1em; text-transform: uppercase; color: #7a9e7a; margin-bottom: 8px; }
+.mbgen-label { display: block; font-size: .75rem; color: #7a9e7a; margin: 8px 0 3px; }
+.mbgen-input {
+  width: 100%; background: #0a120a; border: 1px solid #2e4a2e; color: #d4e8d4;
+  padding: 6px 8px; font-size: .8rem; font-family: 'Space Mono', monospace;
+  border-radius: 3px; outline: none;
+}
+.mbgen-input:focus { border-color: #4caf50; }
+.mbgen-format-display { background: #0a120a; border: 1px solid #2e4a2e; border-radius: 3px; padding: 6px 8px; font-size: .8rem; color: #81c784; }
+.mbgen-range-row { display: flex; gap: 8px; }
+.mbgen-range-row > div { flex: 1; }
+.mbgen-tile-info { font-size: .72rem; color: #7a9e7a; padding: 6px 0 0; min-height: 1.3em; }
+.mbgen-tile-info.warn { color: #ff7043; }
+.mbgen-tile-info.ok { color: #81c784; }
+.mbgen-bbox-display { background: #0a120a; border: 1px solid #2e4a2e; border-radius: 3px; padding: 8px; font-size: .7rem; color: #7a9e7a; line-height: 1.6; margin-bottom: 8px; }
+.mbgen-bbox-display.active { color: #81c784; border-color: #4caf50; }
+.mbgen-btn {
+  display: block; width: 100%; padding: 9px; border: none; border-radius: 3px;
+  cursor: pointer; font-family: 'Space Mono', monospace; font-size: .8rem;
+  letter-spacing: .06em; text-transform: uppercase; margin-top: 8px;
+}
+.mbgen-btn-primary { background: #4caf50; color: #0a120a; font-weight: bold; }
+.mbgen-btn-primary:hover:not(:disabled) { background: #81c784; }
+.mbgen-btn-secondary { background: transparent; border: 1px solid #2e4a2e; color: #7a9e7a; }
+.mbgen-btn-secondary:hover { border-color: #4caf50; color: #4caf50; }
+.mbgen-btn:disabled { opacity: .4; cursor: not-allowed; }
+#mbgen-progress-section { display: none; }
+#mbgen-progress-section.active { display: block; }
+#mbgen-prog-bar-outer { background: #0a120a; border: 1px solid #2e4a2e; border-radius: 3px; height: 13px; overflow: hidden; margin: 6px 0; }
+#mbgen-prog-bar { height: 100%; background: linear-gradient(90deg,#4caf50,#81c784); width: 0%; transition: width .3s; }
+#mbgen-prog-text { font-size: .7rem; color: #7a9e7a; }
+#mbgen-log-area { background: #0a120a; border: 1px solid #2e4a2e; border-radius: 3px; height: 100px; overflow-y: auto; padding: 6px 8px; font-size: .66rem; color: #7a9e7a; margin-top: 6px; }
+#mbgen-log-area .mbgen-log-ok { color: #81c784; }
+#mbgen-log-area .mbgen-log-err { color: #ff7043; }
+
+#mbgen-map-container { flex: 1; position: relative; }
+#mbgen-map { width: 100%; height: 100%; position: relative; cursor: crosshair; }
+#mbgen-draw-hint {
+  position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+  background: rgba(15,26,16,.85); border: 1px solid #4caf50; color: #81c784;
+  padding: 6px 16px; font-size: .78rem; font-family: 'Space Mono', monospace;
+  border-radius: 20px; pointer-events: none; z-index: 900;
+}
+#mbgen-btn-select-mode {
+  position: absolute; top: 10px; right: 10px; z-index: 1000;
+  background: #162018; border: 2px solid #2e4a2e; color: #7a9e7a;
+  font-family: 'Space Mono', monospace; font-size: .75rem; letter-spacing: .06em;
+  text-transform: uppercase; padding: 8px 12px; border-radius: 4px; cursor: pointer;
+  display: none; align-items: center; gap: 6px;
+}
+#mbgen-btn-select-mode.active { background: #4caf50; border-color: #4caf50; color: #0a120a; font-weight: bold; }
+@media (hover: none) and (pointer: coarse) { #mbgen-btn-select-mode { display: flex; } }
+#mbgen-status-badge {
+  position: absolute; top: 10px; left: 10px; z-index: 1000;
+  display: inline-block; background: #ff7043; color: #fff; font-size: .6rem;
+  padding: 2px 8px; border-radius: 10px; font-family: 'Space Mono', monospace;
+  letter-spacing: .06em; text-transform: uppercase;
+}
+#mbgen-status-badge.ready { background: #4caf50; color: #0a120a; }
+@media (max-width: 640px) {
+  #mbgen-panel { flex-direction: column !important; }
+  #mbgen-sidebar { width: 100%; max-height: 50dvh; border-right: none; border-bottom: 2px solid #2e4a2e; }
+}
+
 </style>
 </head>
 <body>
@@ -450,6 +528,7 @@ html, body { height: 100%; overflow: hidden; font-family: 'Outfit', sans-serif; 
   <div id="tab-bar">
     <button class="tab-btn active" onclick="switchPanel('editor-panel')">🗺 Édition</button>
     <button class="tab-btn" onclick="switchPanel('creation-panel')">📷 Création</button>
+    <button class="tab-btn" onclick="switchPanel('mbgen-panel')">🛰️ Générer MBtiles</button>
     <button class="tab-btn" onclick="switchPanel('visite-panel')">🎬 Visite</button>
     <button class="tab-btn" onclick="switchPanel('deploy-panel')">📦 Déploiement</button>
   </div>
@@ -508,6 +587,84 @@ html, body { height: 100%; overflow: hidden; font-family: 'Outfit', sans-serif; 
         <canvas id="elev-canvas"></canvas>
         <div id="elev-tooltip"></div>
         <div id="elev-cursor"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VOLET GÉNÉRATION MBTILES (porté d'ign2mbt) -->
+  <div id="mbgen-panel" class="panel" style="flex-direction:row;">
+    <aside id="mbgen-sidebar">
+      <div class="mbgen-section" id="mbgen-section-apikey">
+        <div class="mbgen-section-title">🔑 Clé API IGN</div>
+        <div id="mbgen-apikey-notice" style="font-size:.72rem;font-family:'Space Mono',monospace;margin-bottom:6px;"></div>
+        <label class="mbgen-label" id="mbgen-label-apikey">Clé API (ex: igf_scan_ws)</label>
+        <input type="text" class="mbgen-input" id="mbgen-api-key" placeholder="igf_scan_ws" value="" spellcheck="false" />
+        <label class="mbgen-label">User-Agent</label>
+        <input type="text" class="mbgen-input" id="mbgen-user-agent" value="Mozilla/5.0 Gecko/20100101 Firefox/49.0" />
+      </div>
+
+      <div class="mbgen-section">
+        <div class="mbgen-section-title">🗺️ Couche WMTS</div>
+        <label class="mbgen-label">Layer</label>
+        <select class="mbgen-input" id="mbgen-layer">
+          <optgroup label="🔒 Privé (clé API requise)">
+            <option value="GEOGRAPHICALGRIDSYSTEMS.MAPS">Scan IGN (toutes échelles)</option>
+            <option value="GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN25TOUR">Scan 25 Tour</option>
+          </optgroup>
+          <optgroup label="🔓 Public (sans clé API)">
+            <option value="GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2">Plan IGN V2</option>
+            <option value="ORTHOIMAGERY.ORTHOPHOTOS">Orthophotos</option>
+          </optgroup>
+        </select>
+        <div id="mbgen-layer-status" style="font-size:.72rem;margin-top:5px;font-family:'Space Mono',monospace;"></div>
+        <label class="mbgen-label">Format <span style="color:var(--stone);font-size:.65rem">(imposé par la couche)</span></label>
+        <div id="mbgen-format-display" class="mbgen-format-display">image/jpeg</div>
+        <input type="hidden" id="mbgen-format" value="image/jpeg" />
+      </div>
+
+      <div class="mbgen-section">
+        <div class="mbgen-section-title">🔍 Niveaux de zoom</div>
+        <div class="mbgen-range-row">
+          <div><label class="mbgen-label">Min</label><input type="number" class="mbgen-input" id="mbgen-zoom-min" value="12" min="0" max="18" /></div>
+          <div><label class="mbgen-label">Max</label><input type="number" class="mbgen-input" id="mbgen-zoom-max" value="16" min="0" max="18" /></div>
+        </div>
+        <div id="mbgen-tile-info" class="mbgen-tile-info">–</div>
+      </div>
+
+      <div class="mbgen-section">
+        <div class="mbgen-section-title">📐 Zone sélectionnée</div>
+        <div id="mbgen-bbox-display" class="mbgen-bbox-display">Dessinez un rectangle sur la carte →</div>
+        <button class="mbgen-btn mbgen-btn-secondary" id="mbgen-btn-clear">✕ Effacer la sélection</button>
+      </div>
+
+      <div class="mbgen-section">
+        <div class="mbgen-section-title">💾 Fichier de sortie</div>
+        <label class="mbgen-label">Nom du fichier .mbtiles</label>
+        <input type="text" class="mbgen-input" id="mbgen-output-name" value="carte_ign" placeholder="carte_ign" />
+      </div>
+
+      <div class="mbgen-section">
+        <div class="mbgen-section-title">⚡ Actions</div>
+        <button class="mbgen-btn mbgen-btn-primary" id="mbgen-btn-generate" disabled>Générer .mbtiles</button>
+        <button class="mbgen-btn mbgen-btn-secondary" id="mbgen-btn-stop" disabled>⏹ Arrêter</button>
+      </div>
+
+      <div class="mbgen-section" id="mbgen-progress-section">
+        <div class="mbgen-section-title">📊 Progression</div>
+        <div id="mbgen-prog-bar-outer"><div id="mbgen-prog-bar"></div></div>
+        <div id="mbgen-prog-text">–</div>
+        <div id="mbgen-log-area"></div>
+      </div>
+    </aside>
+
+    <div id="mbgen-map-container">
+      <div id="mbgen-map">
+        <div id="mbgen-draw-hint">🖱 Cliquer–glisser pour sélectionner une zone</div>
+        <button id="mbgen-btn-select-mode" title="Activer le mode sélection tactile">
+          <span id="mbgen-select-mode-icon">✏️</span>
+          <span id="mbgen-select-mode-label">Sélectionner</span>
+        </button>
+        <span id="mbgen-status-badge">Aucune sélection</span>
       </div>
     </div>
   </div>
@@ -591,6 +748,10 @@ html, body { height: 100%; overflow: hidden; font-family: 'Outfit', sans-serif; 
           &#x1f50a; Voix TTS
         </button>
       </div>
+      <label id="lbl-export-offline" style="display:flex;align-items:center;gap:8px;font-size:.8rem;color:var(--stone);cursor:pointer;">
+        <input type="checkbox" id="chk-export-offline" disabled>
+        📴 Inclure le fond MBtiles pour un usage hors-ligne (fichier plus volumineux)
+      </label>
       <div id="visite-wp-list-section" style="display:none;">
         <h3 style="font-size:.8rem;color:var(--stone);letter-spacing:.08em;margin-bottom:8px;">ETAPES</h3>
         <div id="visite-wp-list" style="font-size:.82rem;color:var(--stone);line-height:2;font-family:monospace;white-space:pre;"></div>
@@ -897,6 +1058,7 @@ async function onMbtilesFile(file) {
 
     infoEl.textContent = '✅ ' + file.name + ' (' + format + ')';
     toast('Fond MBtiles chargé : ' + file.name);
+    if (typeof updateVisiteButtons === 'function') updateVisiteButtons();
   } catch (e) {
     infoEl.textContent = '❌ Impossible de lire ce fichier .mbtiles';
     toast('Erreur de lecture du fichier MBtiles', 'error');
@@ -1206,6 +1368,7 @@ function renderList() {
   list.innerHTML = state.waypoints.map(wp => `
     <div class="wp-card" id="wpc-${wp.id}">
       <div class="wp-card-header" onclick="toggleCard(${wp.id})">
+        <div class="wp-drag-handle" onpointerdown="startCardDrag(event, ${wp.id})" onclick="event.stopPropagation()" title="Glisser pour réordonner">⠿</div>
         <div class="wp-icon ${wp.photoBlob?'has-photo':''}">${wp.photoBlob?'📷':'📍'}</div>
         <div class="wp-info">
           <div class="wp-name-display">${esc(wp.name)}</div>
@@ -1249,6 +1412,91 @@ function renderList() {
       </div>
     </div>`).join('');
   state.waypoints.forEach(wp => { if (wp.photoBlob) loadThumb(wp); });
+}
+
+// ── RÉORDONNANCEMENT DE LA LISTE PAR GLISSER-DÉPOSER ───
+// Basé sur Pointer Events (souris + tactile + stylet unifiés), plutôt que
+// l'API HTML5 Drag and Drop qui ne fonctionne pas au toucher sur mobile.
+let _reorder = null;
+
+function startCardDrag(e, id) {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  e.preventDefault();
+  e.stopPropagation();
+
+  const handle = e.currentTarget;
+  const list = document.getElementById('waypoints-list');
+  const card = handle.closest('.wp-card');
+  const cardsEls = Array.from(list.children).filter(el => el.classList.contains('wp-card'));
+  const fromIndex = cardsEls.indexOf(card);
+  if (fromIndex === -1) return;
+
+  const rects = cardsEls.map(el => el.getBoundingClientRect());
+  const cardHeight = rects[fromIndex].height;
+  const gap = 6; // doit correspondre au margin-bottom de .wp-card en CSS
+
+  _reorder = { id, list, cardsEls, rects, fromIndex, targetIndex: fromIndex, startY: e.clientY, cardHeight, gap };
+
+  card.classList.add('wp-dragging');
+  cardsEls.forEach(el => { el.style.transition = 'transform .15s ease'; });
+  card.style.transition = 'none';
+
+  handle.setPointerCapture(e.pointerId);
+  handle.addEventListener('pointermove', onCardDragMove);
+  handle.addEventListener('pointerup', endCardDrag);
+  handle.addEventListener('pointercancel', endCardDrag);
+}
+
+function onCardDragMove(e) {
+  const r = _reorder;
+  if (!r) return;
+  const dy = e.clientY - r.startY;
+  r.cardsEls[r.fromIndex].style.transform = `translateY(${dy}px)`;
+
+  const draggedCenter = r.rects[r.fromIndex].top + r.rects[r.fromIndex].height / 2 + dy;
+
+  // Nombre d'autres cartes dont le centre (position d'origine) se trouve
+  // au-dessus du centre actuel de la carte tirée : c'est directement son
+  // index cible dans la liste finale.
+  let count = 0;
+  r.cardsEls.forEach((el, i) => {
+    if (i === r.fromIndex) return;
+    const center = r.rects[i].top + r.rects[i].height / 2;
+    if (center < draggedCenter) count++;
+  });
+  r.targetIndex = count;
+
+  const shiftAmount = r.cardHeight + r.gap;
+  r.cardsEls.forEach((el, i) => {
+    if (i === r.fromIndex) return;
+    const rank = i < r.fromIndex ? i : i - 1; // position parmi les "autres", dans l'ordre d'origine
+    let shift = 0;
+    if (i > r.fromIndex && rank < count) shift = -shiftAmount;   // passe d'après à avant la carte tirée
+    else if (i < r.fromIndex && rank >= count) shift = shiftAmount; // passe d'avant à après la carte tirée
+    el.style.transform = shift ? `translateY(${shift}px)` : '';
+  });
+}
+
+function endCardDrag(e) {
+  const r = _reorder;
+  if (!r) return;
+  const handle = e.currentTarget;
+  handle.removeEventListener('pointermove', onCardDragMove);
+  handle.removeEventListener('pointerup', endCardDrag);
+  handle.removeEventListener('pointercancel', endCardDrag);
+  try { handle.releasePointerCapture(e.pointerId); } catch (err) {}
+
+  r.cardsEls.forEach(el => { el.style.transition = ''; el.style.transform = ''; });
+  r.cardsEls[r.fromIndex].classList.remove('wp-dragging');
+
+  if (r.targetIndex !== r.fromIndex) {
+    const [item] = state.waypoints.splice(r.fromIndex, 1);
+    state.waypoints.splice(r.targetIndex, 0, item);
+    renderList();
+    updateStats();
+    saveSession();
+  }
+  _reorder = null;
 }
 
 function toggleCard(id) {
@@ -1857,10 +2105,12 @@ function switchPanel(id) {
     b.classList.toggle('active',
       (id==='editor-panel'&&b.textContent.includes('Édition'))||
       (id==='creation-panel'&&b.textContent.includes('Création'))||
+      (id==='mbgen-panel'&&b.textContent.includes('MBtiles'))||
       (id==='visite-panel'&&b.textContent.includes('Visite'))||
       (id==='deploy-panel'&&b.textContent.includes('ploiement')));
   });
   if (id==='editor-panel') setTimeout(()=>map.invalidateSize(),100);
+  if (id==='mbgen-panel') { initMbgenMap(); setTimeout(()=>genMap.invalidateSize(),100); }
   if (id==='deploy-panel') refreshDeployPanel();
 }
 
@@ -2595,6 +2845,17 @@ function updateVisiteButtons(){
   const be=document.getElementById('btn-export-visite');
   if(bs) bs.disabled=!ok;
   if(be) be.disabled=!ok;
+  const co=document.getElementById('chk-export-offline');
+  const lo=document.getElementById('lbl-export-offline');
+  const hasMbtiles = !!(state.mbtiles && state.mbtiles.db);
+  if(co){
+    co.disabled = !hasMbtiles;
+    if(!hasMbtiles) co.checked = false;
+  }
+  if(lo){
+    lo.style.opacity = hasMbtiles ? '1' : '.45';
+    lo.title = hasMbtiles ? '' : "Chargez d'abord un fond MBtiles dans l'onglet Édition pour activer cette option";
+  }
   if(ok){
     const st=document.getElementById('visite-status');
     if(st) st.innerHTML='<strong style="color:var(--sage)">'+state.waypoints.length+' waypoints</strong> — '+state.waypoints.filter(w=>w.photoBlob).length+' avec photo.';
@@ -2781,18 +3042,93 @@ function vAnimateTo(fromIdx, targetWp){
 // ═══════════════════════════════════════════════════
 async function exportVisite(){
   if(!state.waypoints.length) return;
-  toast('Generation du diaporama...');
+
+  function uint8ToBase64(bytes){
+    let binaire='';
+    const taillePas=8192;
+    for(let i=0;i<bytes.length;i+=taillePas){
+      binaire+=String.fromCharCode.apply(null, bytes.subarray(i, i+taillePas));
+    }
+    return btoa(binaire);
+  }
+  function echapperFermetureScript(s){
+    // Empêche toute séquence "</script" présente dans un fichier tiers embarqué
+    // (Leaflet, sql.js) de terminer prématurément notre propre balise <script>.
+    return s.replace(/<\/script/gi, '<\\/script');
+  }
+
+  const offline = document.getElementById('chk-export-offline') && document.getElementById('chk-export-offline').checked && state.mbtiles && state.mbtiles.db;
+  toast(offline ? 'Génération du diaporama hors-ligne (peut prendre un moment)…' : 'Generation du diaporama...');
   async function b64(blob){if(!blob)return null;return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(blob);});}
   const slides=await Promise.all(state.waypoints.map(async wp=>({name:wp.name,comment:wp.comment||'',lat:wp.lat,lon:wp.lon,photo:wp.photoBlob?await b64(wp.photoBlob):null})));
   const trackData=JSON.stringify(state.trackCoords.map(c=>[c[0],c[1]]));
   const slidesData=JSON.stringify(slides);
   const title=state.rawFileName||'Visite';
-  const LAYER=state.mapLayer;
-  const css='@keyframes ma-fw{to{stroke-dashoffset:-22}}.ma-trail-export{stroke-linecap:round;animation:ma-fw .55s linear infinite;}*{box-sizing:border-box;margin:0;padding:0}html{height:100%}body{background:#000;font-family:system-ui;color:#f0ebe0;height:100dvh;overflow:hidden;display:flex;flex-direction:column}#vmap-wrap{flex:0 0 38vh;position:relative;min-height:0;transition:flex-basis .32s ease}body.photo-zoomed #vmap-wrap{flex-basis:9vh}#vmap{width:100%;height:100%}#hud{position:absolute;top:0;left:0;right:0;background:linear-gradient(rgba(0,0,0,.7),transparent);padding:8px 14px;display:flex;align-items:center;gap:10px;z-index:500}#prog-txt{font-family:monospace;font-size:.72rem;color:#b8d4a0;flex-shrink:0}#prog-bar{flex:1;height:3px;background:rgba(255,255,255,.15);border-radius:2px;overflow:hidden}#prog-fill{height:100%;background:#7aad5a;border-radius:2px;transition:width .4s}#photo-wrap{flex:1 1 auto;min-height:0;position:relative;background:#0a0f07;display:flex;align-items:center;justify-content:center;overflow:hidden;transition:flex-basis .32s ease}#slide-photo{max-width:100%;max-height:100%;object-fit:contain;display:none;cursor:pointer}#no-photo{font-size:5rem;opacity:.15;cursor:pointer}#zoom-btn{position:absolute;top:8px;right:10px;z-index:520;width:32px;height:32px;border-radius:50%;border:none;background:rgba(0,0,0,.45);color:#b8d4a0;font-size:.95rem;cursor:pointer}#zoom-btn:hover{background:rgba(0,0,0,.7);color:#fff}#info-bar{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.92));padding:14px 16px;max-height:45%}#wp-name{font-family:monospace;font-size:.95rem;font-weight:700;color:#7aad5a;margin-bottom:3px}#wp-comment{font-size:.78rem;color:#b8d4a0;line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}#controls{flex:0 0 auto;display:flex;gap:8px;justify-content:center;padding:12px 10px;padding-bottom:calc(12px + env(safe-area-inset-bottom));background:#0d1a09;border-top:1px solid rgba(255,255,255,.08)}.ctrl-btn{padding:13px 18px;border-radius:24px;border:none;font-size:.82rem;font-weight:600;cursor:pointer;font-family:system-ui;-webkit-tap-highlight-color:transparent}.ctrl-btn:disabled{opacity:.35;cursor:default}#btn-next,#btn-prev{background:rgba(255,255,255,.14);color:#b8d4a0;min-width:80px}#btn-tts{background:rgba(74,124,53,.9);color:#f8f5ee;flex:1;max-width:200px}';
+  let LAYER=state.mapLayer;
+  let offlineHeadExtra='';
+  let offlineScriptExtra='';
+  if(offline){
+    try {
+      const mbtilesBytes = state.mbtiles.db.export();
+      const mbtilesB64 = uint8ToBase64(mbtilesBytes);
+      const sqlJsUrl = 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js';
+      const wasmUrl = 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.wasm';
+      const leafletCssUrl = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      const leafletJsUrl = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      const [sqlJsText, wasmBuf, leafletCssText, leafletJsText] = await Promise.all([
+        fetch(sqlJsUrl).then(r=>r.text()),
+        fetch(wasmUrl).then(r=>r.arrayBuffer()),
+        fetch(leafletCssUrl).then(r=>r.text()),
+        fetch(leafletJsUrl).then(r=>r.text()),
+      ]);
+      const wasmB64 = uint8ToBase64(new Uint8Array(wasmBuf));
+
+      offlineHeadExtra = '<style>'+leafletCssText+'</style>'
+        +'<scr'+'ipt>'+echapperFermetureScript(leafletJsText)+'</scr'+'ipt>';
+
+      offlineScriptExtra = '<scr'+'ipt>'+echapperFermetureScript(sqlJsText)+'</scr'+'ipt>'
+        +'<scr'+'ipt>'
+        +"var MBTILES_B64='"+mbtilesB64+"';"
+        +"var MBTILES_FORMAT='"+(state.mbtiles.format||'png')+"';"
+        +"var WASM_B64='"+wasmB64+"';"
+        +"function b64ToUint8(b64){var bin=atob(b64);var arr=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);return arr;}"
+        +"var _mbtilesDbPromise=initSqlJs({wasmBinary:b64ToUint8(WASM_B64).buffer}).then(function(SQL){return new SQL.Database(b64ToUint8(MBTILES_B64));});"
+        +"var MBTilesLayerExport=L.GridLayer.extend({createTile:function(coords,done){"
+        +"var tile=document.createElement('img');tile.alt='';"
+        +"_mbtilesDbPromise.then(function(db){"
+        +"var z=coords.z,x=coords.x,nCols=Math.pow(2,z);"
+        +"var xw=((x%nCols)+nCols)%nCols,y=(nCols-1)-coords.y;"
+        +"try{"
+        +"var stmt=db.prepare('SELECT tile_data FROM tiles WHERE zoom_level=? AND tile_column=? AND tile_row=? LIMIT 1');"
+        +"stmt.bind([z,xw,y]);"
+        +"if(stmt.step()){"
+        +"var row=stmt.getAsObject();"
+        +"var mime=MBTILES_FORMAT==='jpg'?'image/jpeg':MBTILES_FORMAT==='webp'?'image/webp':'image/png';"
+        +"var blob=new Blob([row.tile_data],{type:mime});"
+        +"var url=URL.createObjectURL(blob);"
+        +"tile.onload=function(){URL.revokeObjectURL(url);done(null,tile);};"
+        +"tile.onerror=function(){URL.revokeObjectURL(url);done(null,tile);};"
+        +"tile.src=url;"
+        +"}else{done(null,tile);}"
+        +"stmt.free();"
+        +"}catch(e){done(null,tile);}"
+        +"});"
+        +"return tile;"
+        +"}});"
+        +'</scr'+'ipt>';
+
+      LAYER='mbtiles'; // le fond en ligne ne fonctionnerait pas sans réseau : on force le fond embarqué
+    } catch(e) {
+      toast("Impossible d'inclure le fond MBtiles : "+e.message, 'error');
+      offlineHeadExtra=''; offlineScriptExtra='';
+    }
+  }
+  const css='@keyframes ma-fw{to{stroke-dashoffset:-22}}.ma-trail-export{stroke-linecap:round;animation:ma-fw .55s linear infinite;}*{box-sizing:border-box;margin:0;padding:0}html{height:100%}body{background:#000;font-family:system-ui;color:#f0ebe0;height:100dvh;overflow:hidden;display:flex;flex-direction:column}#vmap-wrap{flex:0 0 38vh;position:relative;min-height:0;transition:flex-basis .32s ease}body.photo-zoomed #vmap-wrap{flex-basis:9vh}#vmap{width:100%;height:100%}#hud{position:absolute;top:0;left:0;right:0;background:linear-gradient(rgba(0,0,0,.7),transparent);padding:8px 14px;display:flex;align-items:center;gap:10px;z-index:500}#prog-txt{font-family:monospace;font-size:.72rem;color:#b8d4a0;flex-shrink:0}#prog-bar{flex:1;height:3px;background:rgba(255,255,255,.15);border-radius:2px;overflow:hidden}#prog-fill{height:100%;background:#7aad5a;border-radius:2px;transition:width .4s}#photo-wrap{flex:1 1 auto;min-height:0;position:relative;background:#0a0f07;display:flex;align-items:center;justify-content:center;overflow:hidden;transition:flex-basis .32s ease}#slide-photo{max-width:100%;max-height:100%;object-fit:contain;display:none;cursor:pointer}#no-photo{font-size:5rem;opacity:.15;cursor:pointer}#zoom-btn{position:absolute;top:8px;right:10px;z-index:520;width:32px;height:32px;border-radius:50%;border:none;background:rgba(0,0,0,.45);color:#b8d4a0;font-size:.95rem;cursor:pointer}#zoom-btn:hover{background:rgba(0,0,0,.7);color:#fff}#info-bar{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.92));padding:14px 16px;max-height:45%}#wp-name{font-family:monospace;font-size:.95rem;font-weight:700;color:#7aad5a;margin-bottom:3px}#wp-comment{font-size:.78rem;color:#b8d4a0;line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}#controls{flex:0 0 auto;display:flex;gap:8px;justify-content:center;padding:12px 10px;padding-bottom:calc(12px + env(safe-area-inset-bottom));background:#0d1a09;border-top:1px solid rgba(255,255,255,.08)}.ctrl-btn{padding:13px 18px;border-radius:24px;border:none;font-size:.82rem;font-weight:600;cursor:pointer;font-family:system-ui;-webkit-tap-highlight-color:transparent}.ctrl-btn:disabled{opacity:.35;cursor:default}#btn-next,#btn-prev{background:rgba(255,255,255,.14);color:#b8d4a0;min-width:80px}#btn-tts{background:rgba(74,124,53,.9);color:#f8f5ee;flex:1;max-width:200px}#gps-status{font-family:monospace;font-size:.68rem;color:#7aad5a;flex-shrink:0;margin-left:auto;white-space:nowrap}.gps-dot-icon{position:absolute;top:0;left:0;width:16px;height:16px;background:#2196f3;border:2px solid #fff;border-radius:50%;box-shadow:0 0 4px rgba(0,0,0,.5)}.gps-pulse{position:absolute;top:0;left:0;width:16px;height:16px;border-radius:50%;background:#2196f3;opacity:.55;animation:gps-pulse-anim 1.8s ease-out infinite}@keyframes gps-pulse-anim{0%{transform:scale(1);opacity:.55}100%{transform:scale(3.2);opacity:0}}';
   const jsMain=`var slides=${slidesData};var track=${trackData};
 var idx=0;
 var vmap=L.map('vmap',{zoomControl:false,attributionControl:false});
 var _tl={'osm':L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}),'ign-plan':L.tileLayer('https://data.geopf.fr/wmts?layer=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&style=normal&tilematrixset=PM&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image%2Fpng&TileMatrix={z}&TileCol={x}&TileRow={y}',{maxZoom:19}),'ign-ortho':L.tileLayer('https://data.geopf.fr/wmts?layer=ORTHOIMAGERY.ORTHOPHOTOS&style=normal&tilematrixset=PM&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image%2Fjpeg&TileMatrix={z}&TileCol={x}&TileRow={y}',{maxZoom:20})};
+if(typeof MBTilesLayerExport!=='undefined'){ _tl['mbtiles']=new MBTilesLayerExport({maxZoom:22,minZoom:0}); }
 (_tl['${LAYER}']||_tl['osm']).addTo(vmap);
 if(track.length>1){
   var tl=L.polyline(track,{color:'#1a3a0f',weight:8,opacity:.85}).addTo(vmap);
@@ -2814,6 +3150,31 @@ if(track.length>1){
   vmap.setView([slides[0].lat,slides[0].lon],15);
 } else {
   vmap.setView([46.5,2.5],6);
+}
+
+// ── Marqueur de position GPS instantanée (pulsant), pour comparer sur le
+// terrain sa position réelle avec celle des waypoints affichés ──
+var gpsMarker=null, gpsAccCircle=null;
+var gpsStatusEl=document.getElementById('gps-status');
+if(navigator.geolocation){
+  if(gpsStatusEl) gpsStatusEl.textContent='📍 recherche…';
+  navigator.geolocation.watchPosition(function(pos){
+    var lat=pos.coords.latitude, lon=pos.coords.longitude, acc=pos.coords.accuracy;
+    if(!gpsMarker){
+      var gpsIcon=L.divIcon({className:'',html:'<div class="gps-pulse"></div><div class="gps-dot-icon"></div>',iconSize:[16,16],iconAnchor:[8,8]});
+      gpsMarker=L.marker([lat,lon],{icon:gpsIcon,zIndexOffset:1000,interactive:false}).addTo(vmap);
+      gpsAccCircle=L.circle([lat,lon],{radius:acc,color:'#2196f3',weight:1,fillColor:'#2196f3',fillOpacity:.08,interactive:false}).addTo(vmap);
+    } else {
+      gpsMarker.setLatLng([lat,lon]);
+      gpsAccCircle.setLatLng([lat,lon]);
+      gpsAccCircle.setRadius(acc);
+    }
+    if(gpsStatusEl) gpsStatusEl.textContent='📍 ±'+Math.round(acc)+' m';
+  }, function(err){
+    if(gpsStatusEl) gpsStatusEl.textContent='📍 indisponible';
+  }, {enableHighAccuracy:true, maximumAge:5000, timeout:15000});
+} else if(gpsStatusEl){
+  gpsStatusEl.textContent='';
 }
 
 document.getElementById('splash').style.display='none';
@@ -2936,21 +3297,27 @@ function photoHoverOut(){
   document.body.classList.remove('photo-zoomed');
   setTimeout(function(){vmap.invalidateSize();},340);
 }`;
-  const lsrc='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-  const html='<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>'+title+' - Visite</title><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><style>'+css+'</style></head>'
+  const headLeaflet = offlineHeadExtra
+    ? offlineHeadExtra
+    : '<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">';
+  const bodyLeafletScript = offlineHeadExtra
+    ? '' // Leaflet déjà injecté inline dans <head> via offlineHeadExtra
+    : '<scr'+'ipt src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></scr'+'ipt>';
+  const html='<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>'+title+' - Visite</title>'+headLeaflet+'<style>'+css+'</style></head>'
     +'<body><div id="splash" style="display:none"></div>'
-    +'<div id="vmap-wrap"><div id="vmap"></div><div id="hud"><span id="prog-txt">1 / '+slides.length+'</span><div id="prog-bar"><div id="prog-fill" style="width:0%"></div></div></div></div>'
+    +'<div id="vmap-wrap"><div id="vmap"></div><div id="hud"><span id="prog-txt">1 / '+slides.length+'</span><div id="prog-bar"><div id="prog-fill" style="width:0%"></div></div><span id="gps-status"></span></div></div>'
     +'<div id="photo-wrap" onmouseenter="photoHoverIn()" onmouseleave="photoHoverOut()"><img id="slide-photo" src="" alt="" onclick="toggleZoom()"><div id="no-photo" onclick="toggleZoom()">~</div><button id="zoom-btn" onclick="toggleZoom()" title="Agrandir / reduire la photo">&#9974;</button><div id="info-bar"><div id="wp-name"></div><div id="wp-comment"></div></div>'
     +'</div>'
     +'<div id="controls"><button class="ctrl-btn" id="btn-prev" onclick="go(-1)">&laquo; Prec.</button><button class="ctrl-btn" id="btn-tts" onclick="readComment()">Lire le commentaire</button><button class="ctrl-btn" id="btn-next" onclick="go(1)">Suiv. &raquo;</button></div>'
-    +'<scr'+'ipt src="'+lsrc+'"></scr'+'ipt>'
+    +bodyLeafletScript
+    +offlineScriptExtra
     +'<scr'+'ipt>'+jsMain+'</scr'+'ipt>'
     +'</body></html>';
   const blob=new Blob([html],{type:'text/html;charset=utf-8'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  a.download=(state.rawFileName||'visite')+'-visite.html';
+  a.download=(state.rawFileName||'visite')+(offlineHeadExtra?'-visite-horsligne.html':'-visite.html');
   document.body.appendChild(a);a.click();document.body.removeChild(a);
-  toast('Diaporama exporte', 'success');
+  toast(offlineHeadExtra ? 'Diaporama hors-ligne exporté ✓' : 'Diaporama exporte', 'success');
 }
 
 const SESSION_KEY = 'randonneur8_session';
@@ -3069,6 +3436,336 @@ if ('launchQueue' in window) {
     const file = await fileHandle.getFile();
     if (/\.(kmz|kml)$/i.test(file.name)) loadKMZ(file, 'replace');
   });
+}
+
+// ══════════════════════════════════════════════════════════════
+// VOLET GÉNÉRATION MBTILES — porté d'ign2mbt (BernardHoyez/PWA/ign2mbt)
+// Préfixe gen*/mbgen* pour ne jamais entrer en collision avec le reste
+// de geotour (notamment la variable `map` déjà utilisée par l'Édition).
+// Réutilise loadSqlJs() déjà présent dans geotour plutôt que de recharger
+// sql.js une seconde fois.
+// ══════════════════════════════════════════════════════════════
+let genMap = null;
+let genBbox = null;
+let genAbortFlag = false;
+let genDrawing = false, genStartLatLng = null, genDrawRect = null;
+let genSelectModeActive = false;
+
+function initMbgenMap() {
+  if (genMap) return;
+
+  genMap = L.map('mbgen-map', { zoomControl: true }).setView([46.5, 2.5], 6);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '© OpenStreetMap contributors'
+  }).addTo(genMap);
+
+  const btnSelectMode = document.getElementById('mbgen-btn-select-mode');
+  const selectModeLabel = document.getElementById('mbgen-select-mode-label');
+  const drawHint = document.getElementById('mbgen-draw-hint');
+  const mapEl = document.getElementById('mbgen-map');
+
+  function genContainerPointToLatLng(clientX, clientY) {
+    const rect = mapEl.getBoundingClientRect();
+    return genMap.containerPointToLatLng(L.point(clientX - rect.left, clientY - rect.top));
+  }
+  function genStartDraw(latlng) {
+    genDrawing = true; genStartLatLng = latlng;
+    if (genDrawRect) { genMap.removeLayer(genDrawRect); genDrawRect = null; }
+  }
+  function genMoveDraw(latlng) {
+    if (!genDrawing || !genStartLatLng) return;
+    const b = L.latLngBounds(genStartLatLng, latlng);
+    if (!genDrawRect) {
+      genDrawRect = L.rectangle(b, { color:'#4caf50', weight:2, fill:true, fillColor:'#4caf50', fillOpacity:.18, interactive:false }).addTo(genMap);
+    } else { genDrawRect.setBounds(b); }
+  }
+  function genEndDraw(latlng) {
+    if (!genDrawing) return;
+    genDrawing = false;
+    if (!genStartLatLng || !latlng) return;
+    const b = L.latLngBounds(genStartLatLng, latlng);
+    const sw = b.getSouthWest(), ne = b.getNorthEast();
+    if (Math.abs(sw.lat-ne.lat) < 0.0001 && Math.abs(sw.lng-ne.lng) < 0.0001) return;
+    genSetBbox(b);
+    genStartLatLng = null;
+  }
+
+  genMap.on('mousedown', e => { if (e.originalEvent.button!==0) return; genMap.dragging.disable(); genStartDraw(e.latlng); });
+  genMap.on('mousemove', e => genMoveDraw(e.latlng));
+  genMap.on('mouseup', e => { genMap.dragging.enable(); genEndDraw(e.latlng); });
+  window.addEventListener('mouseup', () => { if (genDrawing) { genDrawing=false; genMap.dragging.enable(); } });
+
+  function genSetSelectMode(active) {
+    genSelectModeActive = active;
+    btnSelectMode.classList.toggle('active', active);
+    selectModeLabel.textContent = active ? 'Navigation' : 'Sélectionner';
+    document.getElementById('mbgen-select-mode-icon').textContent = active ? '🗺️' : '✏️';
+    drawHint.textContent = active ? '☝️ Glisser un doigt pour sélectionner' : '✏️ Appuyez sur "Sélectionner" puis glissez';
+    drawHint.style.display = '';
+    if (active) { genMap.dragging.disable(); genMap.touchZoom.disable(); genMap.doubleClickZoom.disable(); if (genMap.tap) genMap.tap.disable(); }
+    else { genMap.dragging.enable(); genMap.touchZoom.enable(); genMap.doubleClickZoom.enable(); if (genMap.tap) genMap.tap.enable(); }
+  }
+  btnSelectMode.addEventListener('click', () => genSetSelectMode(!genSelectModeActive));
+
+  mapEl.addEventListener('touchstart', e => {
+    if (!genSelectModeActive) return;
+    e.preventDefault(); e.stopPropagation();
+    if (e.touches.length!==1) return;
+    genStartDraw(genContainerPointToLatLng(e.touches[0].clientX, e.touches[0].clientY));
+  }, { passive:false, capture:true });
+  mapEl.addEventListener('touchmove', e => {
+    if (!genSelectModeActive) return;
+    e.preventDefault(); e.stopPropagation();
+    if (e.touches.length!==1) return;
+    genMoveDraw(genContainerPointToLatLng(e.touches[0].clientX, e.touches[0].clientY));
+  }, { passive:false, capture:true });
+  mapEl.addEventListener('touchend', e => {
+    if (!genSelectModeActive) return;
+    e.preventDefault(); e.stopPropagation();
+    const t = e.changedTouches[0];
+    genEndDraw(genContainerPointToLatLng(t.clientX, t.clientY));
+    genSetSelectMode(false);
+  }, { passive:false, capture:true });
+  mapEl.addEventListener('touchcancel', e => { if (!genSelectModeActive) return; e.stopPropagation(); genDrawing=false; }, { capture:true });
+
+  function genSetBbox(b) {
+    genBbox = { west:b.getWest(), south:b.getSouth(), east:b.getEast(), north:b.getNorth() };
+    document.getElementById('mbgen-bbox-display').classList.add('active');
+    document.getElementById('mbgen-bbox-display').innerHTML =
+      `N: ${genBbox.north.toFixed(5)}<br>S: ${genBbox.south.toFixed(5)}<br>W: ${genBbox.west.toFixed(5)}<br>E: ${genBbox.east.toFixed(5)}`;
+    document.getElementById('mbgen-status-badge').textContent = 'Zone sélectionnée';
+    document.getElementById('mbgen-status-badge').className = 'ready';
+    genUpdateTileInfo();
+    document.getElementById('mbgen-btn-generate').disabled = false;
+    drawHint.style.display = 'none';
+  }
+
+  document.getElementById('mbgen-btn-clear').onclick = () => {
+    genBbox = null;
+    if (genDrawRect) { genMap.removeLayer(genDrawRect); genDrawRect = null; }
+    document.getElementById('mbgen-bbox-display').classList.remove('active');
+    document.getElementById('mbgen-bbox-display').textContent = 'Dessinez un rectangle sur la carte →';
+    document.getElementById('mbgen-status-badge').textContent = 'Aucune sélection';
+    document.getElementById('mbgen-status-badge').className = '';
+    document.getElementById('mbgen-tile-info').textContent = '–';
+    document.getElementById('mbgen-tile-info').className = 'mbgen-tile-info';
+    document.getElementById('mbgen-btn-generate').disabled = true;
+    drawHint.textContent = genSelectModeActive ? '☝️ Glisser un doigt pour sélectionner' : '🖱 Cliquer–glisser pour sélectionner une zone';
+    drawHint.style.display = '';
+  };
+
+  ['mbgen-zoom-min','mbgen-zoom-max'].forEach(id => document.getElementById(id).addEventListener('input', genUpdateTileInfo));
+  document.getElementById('mbgen-layer').addEventListener('change', genUpdateLayerUI);
+  genUpdateLayerUI();
+
+  document.getElementById('mbgen-btn-generate').onclick = genGenerateMbtiles;
+  document.getElementById('mbgen-btn-stop').onclick = () => { genAbortFlag = true; genLog('⏹ Arrêt demandé…', 'mbgen-log-err'); };
+}
+
+// ── Calcul du nombre de tuiles ─────────────────────────────────
+function genLon2tile(lon, z) { return Math.floor((lon+180)/360*Math.pow(2,z)); }
+function genLat2tile(lat, z) { return Math.floor((1-Math.log(Math.tan(lat*Math.PI/180)+1/Math.cos(lat*Math.PI/180))/Math.PI)/2*Math.pow(2,z)); }
+function genCountTiles(b, zMin, zMax) {
+  let total = 0;
+  for (let z=zMin; z<=zMax; z++) {
+    const xMin=genLon2tile(b.west,z), xMax=genLon2tile(b.east,z);
+    const yMin=genLat2tile(b.north,z), yMax=genLat2tile(b.south,z);
+    total += (xMax-xMin+1) * (yMax-yMin+1);
+  }
+  return total;
+}
+function genUpdateTileInfo() {
+  if (!genBbox) return;
+  const _layer = document.getElementById('mbgen-layer').value;
+  const _keyCheck = document.getElementById('mbgen-api-key').value.trim();
+  if (genLayerIsPrivate(_layer) && !_keyCheck) {
+    toast('La couche "' + _layer + '" est privée — saisissez votre clé API IGN', 'error');
+    return;
+  }
+  const zMin = parseInt(document.getElementById('mbgen-zoom-min').value);
+  const zMax = parseInt(document.getElementById('mbgen-zoom-max').value);
+  const n = genCountTiles(genBbox, zMin, zMax);
+  const el = document.getElementById('mbgen-tile-info');
+  el.textContent = `≈ ${n.toLocaleString('fr-FR')} tuiles`;
+  el.className = 'mbgen-tile-info ' + (n > 50000 ? 'warn' : 'ok');
+}
+
+// ── Configuration par couche : format imposé + accès ──────────
+const GEN_LAYER_CONFIG = {
+  'GEOGRAPHICALGRIDSYSTEMS.MAPS':          { format: 'image/jpeg', priv: true  },
+  'GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN25TOUR':{ format: 'image/jpeg', priv: true  },
+  'GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2':     { format: 'image/png',  priv: false },
+  'ORTHOIMAGERY.ORTHOPHOTOS':              { format: 'image/jpeg', priv: false },
+};
+const GEN_PRIVATE_LAYERS = new Set(['GEOGRAPHICALGRIDSYSTEMS.MAPS', 'GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN25TOUR']);
+function genLayerIsPrivate(layer) { return GEN_PRIVATE_LAYERS.has(layer); }
+function genLayerFormat(layer) { return (GEN_LAYER_CONFIG[layer] || {}).format || 'image/jpeg'; }
+
+function genUpdateLayerUI() {
+  const layer = document.getElementById('mbgen-layer').value;
+  const priv = genLayerIsPrivate(layer);
+  const notice = document.getElementById('mbgen-apikey-notice');
+  const status = document.getElementById('mbgen-layer-status');
+  const keyInput = document.getElementById('mbgen-api-key');
+  const keyLabel = document.getElementById('mbgen-label-apikey');
+  if (priv) {
+    status.innerHTML  = '<span style="color:#ff7043">🔒 Couche privée – clé API requise</span>';
+    notice.innerHTML  = '<span style="color:#ff7043">⚠️ Cette couche nécessite une clé API IGN valide.</span>';
+    keyInput.style.opacity = '1'; keyInput.style.pointerEvents = 'auto'; keyLabel.style.color = '#d4e8d4';
+  } else {
+    status.innerHTML  = '<span style="color:#81c784">🔓 Couche publique – pas de clé requise</span>';
+    notice.innerHTML  = '<span style="color:#81c784">ℹ️ Couche publique, clé API ignorée.</span>';
+    keyInput.style.opacity = '0.35'; keyInput.style.pointerEvents = 'none'; keyLabel.style.color = '#7a9e7a';
+  }
+  const fmt = genLayerFormat(layer);
+  document.getElementById('mbgen-format').value = fmt;
+  document.getElementById('mbgen-format-display').textContent = fmt;
+}
+
+// ── Construction URL WMTS IGN ──────────────────────────────────
+function genBuildUrl(zoom, x, y) {
+  const layer = document.getElementById('mbgen-layer').value;
+  const fmt = genLayerFormat(layer);
+  const priv = genLayerIsPrivate(layer);
+  if (zoom < 7) {
+    return `https://mt0.google.com/vt/lyrs=m@176103410&hl=fr&s=Galileo&scale=1&z=${zoom}&x=${x}&y=${y}`;
+  }
+  if (priv) {
+    const key = document.getElementById('mbgen-api-key').value.trim();
+    return `https://data.geopf.fr/private/wmts?apikey=${key}&Layer=${layer}&Style=normal&TileMatrixSet=PM&SERVICE=WMTS&REQUEST=GetTile&Version=1.0.0&FORMAT=${encodeURIComponent(fmt)}&TileMatrix=${zoom}&TileCol=${x}&TileRow=${y}`;
+  }
+  return `https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=${layer}&STYLE=normal&FORMAT=${encodeURIComponent(fmt)}&TILEMATRIXSET=PM&TILEMATRIX=${zoom}&TILECOL=${x}&TILEROW=${y}`;
+}
+
+function genLog(msg, cls='mbgen-log-info') {
+  const el = document.getElementById('mbgen-log-area');
+  const line = document.createElement('div');
+  line.className = cls;
+  line.textContent = msg;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+async function genGenerateMbtiles() {
+  if (!genBbox) return;
+  const _layer = document.getElementById('mbgen-layer').value;
+  const _keyCheck = document.getElementById('mbgen-api-key').value.trim();
+  if (genLayerIsPrivate(_layer) && !_keyCheck) {
+    toast('La couche "' + _layer + '" est privée — saisissez votre clé API IGN', 'error');
+    return;
+  }
+  const zMin = parseInt(document.getElementById('mbgen-zoom-min').value);
+  const zMax = parseInt(document.getElementById('mbgen-zoom-max').value);
+  const ua = document.getElementById('mbgen-user-agent').value;
+  const name = document.getElementById('mbgen-output-name').value.trim() || 'carte_ign';
+  const fmt = genLayerFormat(_layer);
+  const ext = fmt.includes('png') ? 'png' : 'jpg';
+
+  if (zMin > zMax) { toast('Zoom min doit être ≤ zoom max', 'error'); return; }
+  const total = genCountTiles(genBbox, zMin, zMax);
+  if (total > 200000) {
+    if (!confirm(`Attention : ${total.toLocaleString('fr-FR')} tuiles. Cela peut prendre très longtemps et générer un fichier volumineux. Continuer ?`)) return;
+  }
+
+  genAbortFlag = false;
+  document.getElementById('mbgen-btn-generate').disabled = true;
+  document.getElementById('mbgen-btn-stop').disabled = false;
+  document.getElementById('mbgen-progress-section').classList.add('active');
+  document.getElementById('mbgen-log-area').innerHTML = '';
+  genLog('Initialisation sql.js…');
+
+  let SQL;
+  try {
+    SQL = await loadSqlJs(); // réutilise le chargeur sql.js déjà présent dans geotour (import MBtiles)
+  } catch (e) {
+    genLog('Erreur sql.js : ' + e.message, 'mbgen-log-err');
+    document.getElementById('mbgen-btn-generate').disabled = false;
+    return;
+  }
+
+  const db = new SQL.Database();
+  db.run(`CREATE TABLE IF NOT EXISTS metadata (name TEXT, value TEXT);`);
+  db.run(`CREATE TABLE IF NOT EXISTS tiles (zoom_level INTEGER, tile_column INTEGER, tile_row INTEGER, tile_data BLOB);`);
+  db.run(`CREATE UNIQUE INDEX IF NOT EXISTS tile_index ON tiles (zoom_level, tile_column, tile_row);`);
+
+  const meta = [
+    ['name', name], ['type','overlay'], ['version','1'],
+    ['description', `IGN ${_layer}`], ['format', ext],
+    ['bounds', `${genBbox.west},${genBbox.south},${genBbox.east},${genBbox.north}`],
+    ['minzoom', String(zMin)], ['maxzoom', String(zMax)],
+  ];
+  const insM = db.prepare('INSERT OR REPLACE INTO metadata VALUES (?,?)');
+  meta.forEach(([k,v]) => insM.run([k,v]));
+  insM.free();
+
+  const insT = db.prepare('INSERT OR REPLACE INTO tiles VALUES (?,?,?,?)');
+  let done = 0, errors = 0;
+  const pb = document.getElementById('mbgen-prog-bar');
+  const pt = document.getElementById('mbgen-prog-text');
+  const CONCURRENCY = 4;
+  const queue = [];
+  for (let z=zMin; z<=zMax; z++) {
+    const xMin=genLon2tile(genBbox.west,z), xMax=genLon2tile(genBbox.east,z);
+    const yMin=genLat2tile(genBbox.north,z), yMax=genLat2tile(genBbox.south,z);
+    for (let x=xMin; x<=xMax; x++) for (let y=yMin; y<=yMax; y++) {
+      const tmsY = Math.pow(2,z)-1-y;
+      queue.push({ z, x, y, tmsY });
+    }
+  }
+  genLog(`${total.toLocaleString('fr-FR')} tuiles à télécharger (Z${zMin}–Z${zMax})`);
+
+  async function genFetchTile({ z, x, y, tmsY }) {
+    const url = genBuildUrl(z, x, y);
+    try {
+      const resp = await fetch(url, { headers: { 'User-Agent': ua } });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const buf = await resp.arrayBuffer();
+      insT.run([z, x, tmsY, new Uint8Array(buf)]);
+      return true;
+    } catch (e) {
+      errors++;
+      if (errors <= 5) genLog(`✗ Z${z}/${x}/${y}: ${e.message}`, 'mbgen-log-err');
+      return false;
+    }
+  }
+
+  let qi = 0;
+  async function genWorker() {
+    while (qi < queue.length && !genAbortFlag) {
+      const item = queue[qi++];
+      await genFetchTile(item);
+      done++;
+      const pct = Math.round(done/total*100);
+      pb.style.width = pct + '%';
+      pt.textContent = `${done}/${total} tuiles (${pct}%) — erreurs: ${errors}`;
+      if (done % 50 === 0) genLog(`✓ ${done}/${total} tuiles…`, 'mbgen-log-ok');
+    }
+  }
+  const workers = [];
+  for (let i=0; i<CONCURRENCY; i++) workers.push(genWorker());
+  await Promise.all(workers);
+  insT.free();
+
+  if (genAbortFlag) {
+    genLog('⏹ Téléchargement interrompu.', 'mbgen-log-err');
+  } else {
+    genLog(`✅ ${done} tuiles téléchargées (${errors} erreurs)`, 'mbgen-log-ok');
+  }
+
+  genLog('Exportation du fichier .mbtiles…');
+  const binaryArray = db.export();
+  db.close();
+  const blob = new Blob([binaryArray], { type: 'application/octet-stream' });
+  const dlUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = dlUrl; a.download = name + '.mbtiles'; a.click();
+  URL.revokeObjectURL(dlUrl);
+
+  genLog(`💾 Téléchargement de "${name}.mbtiles" lancé`, 'mbgen-log-ok');
+  toast('Fichier .mbtiles généré ✓');
+  document.getElementById('mbgen-btn-generate').disabled = false;
+  document.getElementById('mbgen-btn-stop').disabled = true;
+  document.getElementById('mbgen-status-badge').textContent = 'Terminé';
 }
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
