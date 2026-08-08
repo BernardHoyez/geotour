@@ -982,6 +982,14 @@ html, body { height: 100%; overflow: hidden; font-family: 'Outfit', sans-serif; 
       <label class="form-label">Commentaire</label>
       <textarea class="form-input" id="wp-add-comment" rows="2" maxlength="600" placeholder="Description…"></textarea>
     </div>
+    <div class="form-group">
+      <label class="wp-add-photo-label creation-media-label" for="wp-add-audio-input" id="wp-add-audio-label">🎵 Ajouter un audio (mp3)</label>
+      <input type="file" id="wp-add-audio-input" accept="audio/mpeg,.mp3" style="display:none" onchange="onAddWpAudio(this.files[0])">
+    </div>
+    <div class="form-group">
+      <label class="wp-add-photo-label creation-media-label" for="wp-add-video-input" id="wp-add-video-label">🎬 Ajouter une vidéo (mp4)</label>
+      <input type="file" id="wp-add-video-input" accept="video/mp4,.mp4" style="display:none" onchange="onAddWpVideo(this.files[0])">
+    </div>
     <div class="wp-add-row">
       <button class="btn-cancel" onclick="closeAddWpModal()">Annuler</button>
       <button class="btn-confirm" onclick="confirmAddWp()">✓ Ajouter</button>
@@ -2130,11 +2138,19 @@ map.on('click', function(e) {
   _addWpPending.alt  = interpolateAlt(e.latlng.lat, e.latlng.lng);
   _addWpPending.photoBlob = null;
   _addWpPending.photoFile = null;
+  _addWpPending.audioFile = null;
+  _addWpPending.videoFile = null;
   document.getElementById('wp-add-name').value    = '';
   document.getElementById('wp-add-nc').textContent = '0/40';
   document.getElementById('wp-add-comment').value  = '';
   document.getElementById('wp-add-thumb').style.display = 'none';
   document.getElementById('wp-add-photo-zone').textContent = '📷 Ajouter une photo (optionnel)';
+  document.getElementById('wp-add-audio-input').value = '';
+  document.getElementById('wp-add-audio-label').textContent = '🎵 Ajouter un audio (mp3)';
+  document.getElementById('wp-add-audio-label').classList.remove('has-file');
+  document.getElementById('wp-add-video-input').value = '';
+  document.getElementById('wp-add-video-label').textContent = '🎬 Ajouter une vidéo (mp4)';
+  document.getElementById('wp-add-video-label').classList.remove('has-file');
   // Repli « Pointer sur la carte » depuis le volet Création : si une photo
   // avait déjà été choisie là-bas, on la rattache ici plutôt que de la perdre.
   if (_creationPhotoFile) {
@@ -2163,6 +2179,22 @@ function onAddWpPhoto(file) {
   thumb.src = URL.createObjectURL(file);
   thumb.style.display = 'block';
   document.getElementById('wp-add-photo-zone').textContent = '✓ ' + file.name;
+}
+
+function onAddWpAudio(file) {
+  if (!file) return;
+  _addWpPending.audioFile = file;
+  const label = document.getElementById('wp-add-audio-label');
+  label.textContent = '🎵 ' + file.name;
+  label.classList.add('has-file');
+}
+
+function onAddWpVideo(file) {
+  if (!file) return;
+  _addWpPending.videoFile = file;
+  const label = document.getElementById('wp-add-video-label');
+  label.textContent = '🎬 ' + file.name;
+  label.classList.add('has-file');
 }
 
 async function confirmAddWp() {
@@ -2354,6 +2386,7 @@ function renderTree(folderName) {
     '📁 '+folderName+'/\n├── 📁 photos/\n'+photoLines+extra+
     '\n├── 📄 '+folderName+'.kml'+
     '\n├── 📄 '+folderName+'.gpx'+
+    '\n├── 📄 '+folderName+'.json'+
     '\n└── 🌐 '+folderName+'.html';
 }
 
@@ -2427,6 +2460,8 @@ async function generatePackage() {
 
     folder.file(folderName+'.html', buildViewer(folderName, kmlStr, gpxStr));
     setProgress('html',100);
+
+    folder.file(folderName+'.json', buildDeployJSON(folderName));
 
     const zipBlob = await zip.generateAsync({type:'blob',compression:'DEFLATE'}, m=>setProgress('zip',Math.round(m.percent)));
     const url = URL.createObjectURL(zipBlob);
@@ -2569,11 +2604,26 @@ async function saveSessionKMZ() {
   }
 }
 
+function buildDeployJSON(folderName) {
+  const photoWps = state.waypoints.filter(w=>w._optimizedFname);
+  return JSON.stringify({
+    name: folderName,
+    generatedAt: new Date().toISOString(),
+    waypointCount: state.waypoints.length,
+    thumbnail: photoWps.length ? 'photos/'+photoWps[0]._optimizedFname : null,
+    waypoints: state.waypoints.map(wp=>({
+      name: wp.name, lat: wp.lat, lon: wp.lon, alt: wp.alt, comment: wp.comment,
+      photo: wp._optimizedFname||null, audio: wp._deployAudioFname||null, video: wp._deployVideoFname||null,
+    })),
+    track: state.trackCoords,
+  }, null, 2);
+}
+
 function buildViewer(folderName, kmlStr, gpxStr) {
   const toB64 = str => btoa(unescape(encodeURIComponent(str)));
   const kmlB64  = toB64(kmlStr);
   const gpxB64  = toB64(gpxStr);
-  const jsonB64 = toB64(JSON.stringify({name:folderName,waypoints:state.waypoints.map(wp=>({name:wp.name,lat:wp.lat,lon:wp.lon,alt:wp.alt,comment:wp.comment,photo:wp._optimizedFname||null,audio:wp._deployAudioFname||null,video:wp._deployVideoFname||null})),track:state.trackCoords},null,2));
+  const jsonB64 = toB64(buildDeployJSON(folderName));
   const wpData   = JSON.stringify(state.waypoints.map(wp=>({name:wp.name,lat:wp.lat,lon:wp.lon,alt:wp.alt,comment:wp.comment,photo:wp._optimizedFname?'photos/'+wp._optimizedFname:null,audio:wp._deployAudioFname?'audio/'+wp._deployAudioFname:null,video:wp._deployVideoFname?'video/'+wp._deployVideoFname:null})));
   const trackData= JSON.stringify(state.trackCoords.map(c=>[c[0],c[1]]));
   const LAYER    = state.mapLayer;

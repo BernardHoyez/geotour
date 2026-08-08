@@ -52,6 +52,8 @@ Puis au choix :
 - **➕ Ajouter à la liste** : intègre le waypoint (avec son audio/vidéo) à la session en cours (onglet Édition) ; le commentaire est alors conservé en texte brut, pour rester compatible avec le reste de l'application (zone de saisie de la liste, aide IA, export KML principal).
 - **💾 Enregistrer en KMZ** : exporte ce seul waypoint (photo + commentaire enrichi + audio + vidéo) en fichier KMZ autonome, indépendamment de son ajout ou non à la liste. Le commentaire garde alors sa mise en forme complète.
 
+**Cas particulier du mode 🗺️ Carte** : ce mode bascule directement sur la grande carte de l'onglet Édition (mode « clic pour placer », sans passer par le bloc de vérification décrit ci-dessus) et ouvre la fenêtre **Nouveau waypoint** au clic — celle-ci propose aussi nom, commentaire, photo, audio et vidéo, mais pas la barre d'outils de mise en forme du commentaire.
+
 ---
 
 ---
@@ -86,7 +88,7 @@ Diaporama guidé des waypoints, dans l'ordre de la liste de l'onglet Édition.
 
 ## Onglet 📦 Déploiement
 
-Génère un paquet complet (fichiers KML/GPX/JSON + page HTML de consultation avec carte, sans les fonctionnalités d'édition) prêt à héberger sur un site statique. Les popups de la carte incluent la photo (avec bouton **🔍 Agrandir**), ainsi que l'audio et la vidéo de chaque waypoint quand ils sont présents (dossiers `audio/` et `video/` du paquet ; référencés aussi dans le KML via `ExtendedData` et dans le GPX via des balises `<link>`).
+Génère un paquet complet (fichiers KML/GPX/JSON + page HTML de consultation avec carte, sans les fonctionnalités d'édition) prêt à héberger sur un site statique. Les popups de la carte incluent la photo (avec bouton **🔍 Agrandir**), ainsi que l'audio et la vidéo de chaque waypoint quand ils sont présents (dossiers `audio/` et `video/` du paquet ; référencés aussi dans le KML via `ExtendedData` et dans le GPX via des balises `<link>`). Le fichier `<nom_dossier>.json` du paquet (nom, vignette, liste des waypoints avec photo/audio/vidéo, trace) est prévu pour être exploité par un site tiers qui référencerait plusieurs coupes/randonnées (voir le site **Falaises de craie**).
 
 ---
 
