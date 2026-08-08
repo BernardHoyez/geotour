@@ -258,6 +258,23 @@ html, body { height: 100%; overflow: hidden; font-family: 'Outfit', sans-serif; 
   cursor: pointer; transition: var(--transition);
 }
 .wp-add-photo-label:hover { border-color: var(--sage); color: var(--mist); background: rgba(74,124,53,.08); }
+/* Sélecteur de mode de localisation (volet Création) */
+.creation-mode-btn.segment { font-size: .72rem; padding: 8px 4px; line-height: 1.3; }
+/* Barre d'outils du commentaire enrichi */
+.rte-toolbar { display: flex; gap: 4px; margin-bottom: 6px; }
+.rte-toolbar button {
+  width: 28px; height: 26px; border-radius: 5px; border: 1px solid rgba(255,255,255,.1);
+  background: rgba(255,255,255,.05); color: var(--cream); cursor: pointer; font-size: .78rem;
+  font-family: 'Outfit', sans-serif;
+}
+.rte-toolbar button:hover { background: rgba(74,124,53,.18); border-color: var(--fern); }
+.rte-editable {
+  min-height: 70px; max-height: 180px; overflow-y: auto; line-height: 1.4;
+}
+.rte-editable a { color: var(--sage); }
+.rte-editable:empty::before { content: attr(data-placeholder); color: var(--stone); }
+.creation-media-label { position: relative; }
+.creation-media-label.has-file { border-style: solid; border-color: var(--sage); color: var(--cream); }
 /* Bouton "+" sur la carte */
 #btn-add-wp {
   position: absolute; bottom: 16px; right: 16px; z-index: 500;
@@ -672,23 +689,43 @@ html, body { height: 100%; overflow: hidden; font-family: 'Outfit', sans-serif; 
   <!-- VOLET CRÉATION -->
   <div id="creation-panel" class="panel" style="display:none;flex-direction:column;overflow-y:auto;background:var(--panel-bg);align-items:center;">
     <div id="creation-box">
-      <h3>📷 Créer un waypoint depuis une photo</h3>
-      <div id="creation-drop-zone" onclick="document.getElementById('creation-photo-input').click()">
-        <input type="file" id="creation-photo-input" accept="image/*" onchange="onCreationPhotoChange(this.files[0])">
-        <div class="drop-icon">📷</div>
-        <p>Choisissez une photo géolocalisée (JPEG)</p>
-        <div id="creation-file-name">Aucune photo choisie</div>
+      <h3>📷 Créer un waypoint</h3>
+
+      <div id="creation-mode-selector" style="display:flex;border:1px solid var(--fern);border-radius:20px;overflow:hidden;margin-bottom:16px;">
+        <button type="button" class="segment creation-mode-btn active" style="border-right:1px solid var(--fern);" data-mode="photo" onclick="definirModeCreation('photo', this)">📷 Photo</button>
+        <button type="button" class="segment creation-mode-btn" style="border-right:1px solid var(--fern);" data-mode="map" onclick="definirModeCreation('map', this)">🗺️ Carte</button>
+        <button type="button" class="segment creation-mode-btn" data-mode="coords" onclick="definirModeCreation('coords', this)">✍️ Coord.</button>
       </div>
-      <div id="creation-gps-statut"></div>
-      <div id="creation-repli-manuel">
-        <p class="creation-repli-texte">Aucune coordonnée GPS trouvée dans cette photo :</p>
+
+      <div id="creation-mode-photo-block">
+        <div id="creation-drop-zone" onclick="document.getElementById('creation-photo-input').click()">
+          <input type="file" id="creation-photo-input" accept="image/*" onchange="onCreationPhotoChange(this.files[0])">
+          <div class="drop-icon">📷</div>
+          <p>Choisissez une photo géolocalisée (JPEG)</p>
+          <div id="creation-file-name">Aucune photo choisie</div>
+        </div>
+        <div id="creation-gps-statut"></div>
+        <div id="creation-repli-manuel">
+          <p class="creation-repli-texte">Aucune coordonnée GPS trouvée dans cette photo :</p>
+          <div class="creation-repli-row">
+            <input class="form-input" type="number" step="any" id="creation-lat" placeholder="Latitude">
+            <input class="form-input" type="number" step="any" id="creation-lon" placeholder="Longitude">
+          </div>
+          <div class="creation-repli-row">
+            <button class="btn-confirm" onclick="validerCoordonneesManuelles()">✓ Valider ces coordonnées</button>
+            <button class="btn-cancel" onclick="pointerCreationSurCarte()">🗺️ Pointer sur la carte</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="creation-mode-coords-block" style="display:none;">
+        <p class="creation-repli-texte">Saisissez directement les coordonnées du point :</p>
         <div class="creation-repli-row">
-          <input class="form-input" type="number" step="any" id="creation-lat" placeholder="Latitude">
-          <input class="form-input" type="number" step="any" id="creation-lon" placeholder="Longitude">
+          <input class="form-input" type="number" step="any" id="creation-lat-direct" placeholder="Latitude">
+          <input class="form-input" type="number" step="any" id="creation-lon-direct" placeholder="Longitude">
         </div>
         <div class="creation-repli-row">
-          <button class="btn-confirm" onclick="validerCoordonneesManuelles()">✓ Valider ces coordonnées</button>
-          <button class="btn-cancel" onclick="pointerCreationSurCarte()">🗺️ Pointer sur la carte</button>
+          <button class="btn-confirm" onclick="validerCoordonneesDirectes()">✓ Positionner le marqueur</button>
         </div>
       </div>
 
@@ -703,8 +740,26 @@ html, body { height: 100%; overflow: hidden; font-family: 'Outfit', sans-serif; 
         <label class="form-label">Nom</label>
         <input class="form-input" id="creation-nom" maxlength="40" placeholder="Nom du waypoint…">
         <div class="char-count" id="creation-nc">0/40</div>
-        <label class="form-label" style="margin-top:10px;">Commentaire</label>
-        <textarea class="form-input" id="creation-commentaire" rows="3" maxlength="600" placeholder="Description…"></textarea>
+
+        <label class="form-label" style="margin-top:10px;">Commentaire enrichi</label>
+        <div class="rte-toolbar">
+          <button type="button" data-cmd="bold" title="Gras"><b>G</b></button>
+          <button type="button" data-cmd="italic" title="Italique"><i>I</i></button>
+          <button type="button" data-cmd="underline" title="Souligné"><u>S</u></button>
+          <button type="button" data-cmd="insertUnorderedList" title="Liste">•≡</button>
+          <button type="button" data-cmd="createLink" title="Insérer un lien">🔗</button>
+          <button type="button" data-cmd="removeFormat" title="Effacer la mise en forme">⨯</button>
+        </div>
+        <div class="form-input rte-editable" id="creation-commentaire" contenteditable="true" data-placeholder="Description…"></div>
+
+        <label class="form-label" style="margin-top:10px;">Audio (mp3, optionnel)</label>
+        <label class="wp-add-photo-label creation-media-label" for="creation-audio-input" id="creation-audio-label">🎵 Ajouter un audio</label>
+        <input type="file" id="creation-audio-input" accept="audio/mpeg,.mp3" style="display:none" onchange="onCreationAudioChange(this.files[0])">
+
+        <label class="form-label" style="margin-top:6px;">Vidéo (mp4, optionnel)</label>
+        <label class="wp-add-photo-label creation-media-label" for="creation-video-input" id="creation-video-label">🎬 Ajouter une vidéo</label>
+        <input type="file" id="creation-video-input" accept="video/mp4,.mp4" style="display:none" onchange="onCreationVideoChange(this.files[0])">
+
         <div class="creation-repli-row" style="margin-top:14px;">
           <button class="btn-confirm" onclick="ajouterWaypointCreation()">➕ Ajouter à la liste</button>
         </div>
@@ -778,6 +833,8 @@ html, body { height: 100%; overflow: hidden; font-family: 'Outfit', sans-serif; 
       <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.88));padding:14px 16px;max-height:50%;overflow-y:auto;">
         <div id="visite-wp-name" style="font-family:monospace;font-size:.95rem;font-weight:700;color:#7aad5a;margin-bottom:3px;"></div>
         <div id="visite-wp-comment" style="font-size:.78rem;color:#b8d4a0;line-height:1.5;"></div>
+        <audio id="visite-audio" controls style="width:100%;margin-top:8px;display:none;"></audio>
+        <video id="visite-video" controls style="width:100%;max-height:160px;margin-top:8px;display:none;border-radius:6px;"></video>
       </div>
     </div>
     <div style="flex:0 0 auto;display:flex;gap:8px;justify-content:center;padding:12px 10px;padding-bottom:calc(12px + env(safe-area-inset-bottom));background:#0d1a09;border-top:1px solid rgba(255,255,255,.08);">
@@ -887,9 +944,9 @@ html, body { height: 100%; overflow: hidden; font-family: 'Outfit', sans-serif; 
       </div>
       <div class="dp-section">
         <div class="dp-note">
-          <strong>📦 Déploiement sur GitHub Pages</strong>
-          Décompressez l'archive et déposez le dossier dans :<br>
-          <code>BernardHoyez.github.io/PWA/kmz-photos/&lt;nom_dossier&gt;/</code>
+          <strong>📦 Déploiement sur un hébergement statique</strong>
+          Décompressez l'archive et déposez le dossier obtenu sur votre site d'hébergement (GitHub Pages, Netlify, etc.), par exemple dans un répertoire tel que :<br>
+          <code>votre-site.tld/randonnees/&lt;nom_dossier&gt;/</code>
         </div>
       </div>
       <div class="dp-section">
@@ -1371,7 +1428,7 @@ function renderList() {
         <div class="wp-drag-handle" onpointerdown="startCardDrag(event, ${wp.id})" onclick="event.stopPropagation()" title="Glisser pour réordonner">⠿</div>
         <div class="wp-icon ${wp.photoBlob?'has-photo':''}">${wp.photoBlob?'📷':'📍'}</div>
         <div class="wp-info">
-          <div class="wp-name-display">${esc(wp.name)}</div>
+          <div class="wp-name-display">${esc(wp.name)}${wp.audioBlob?' 🎵':''}${wp.videoBlob?' 🎬':''}</div>
           <div class="wp-coords">${wp.lat.toFixed(4)}, ${wp.lon.toFixed(4)}</div>
         </div>
         <span style="color:var(--stone)">▼</span>
@@ -1740,6 +1797,79 @@ let _creationMap = null;
 let _creationMarker = null;
 let _creationLayers = null;
 let _creationFond = 'osm';
+let _creationAudioFile = null;
+let _creationVideoFile = null;
+
+/**
+ * Sélecteur explicite du mode de localisation dans le volet Création :
+ * Photo (EXIF), Carte (clic sur la carte d'Édition), Coordonnées (saisie
+ * directe) — repris du fonctionnement de kmzmanager.
+ */
+function definirModeCreation(mode, btn) {
+  document.querySelectorAll('.creation-mode-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('creation-mode-photo-block').style.display = (mode === 'photo') ? 'block' : 'none';
+  document.getElementById('creation-mode-coords-block').style.display = (mode === 'coords') ? 'block' : 'none';
+  if (mode === 'map') {
+    pointerCreationSurCarte();
+  }
+}
+
+/** Mode « Coordonnées » : saisie directe, indépendante du repli EXIF. */
+function validerCoordonneesDirectes() {
+  const lat = parseFloat(document.getElementById('creation-lat-direct').value);
+  const lon = parseFloat(document.getElementById('creation-lon-direct').value);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+    toast('Coordonnées invalides', 'error');
+    return;
+  }
+  afficherVerificationCreation(lat, lon, null);
+}
+
+function onCreationAudioChange(file) {
+  if (!file) return;
+  _creationAudioFile = file;
+  const label = document.getElementById('creation-audio-label');
+  label.textContent = '🎵 ' + file.name;
+  label.classList.add('has-file');
+}
+
+function onCreationVideoChange(file) {
+  if (!file) return;
+  _creationVideoFile = file;
+  const label = document.getElementById('creation-video-label');
+  label.textContent = '🎬 ' + file.name;
+  label.classList.add('has-file');
+}
+
+/** Nettoyage minimal du HTML du commentaire enrichi (retire scripts/handlers). */
+function gtSanitizeRichHTML(html) {
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html || '';
+  tmp.querySelectorAll('script, style, iframe, object, embed').forEach(el => el.remove());
+  tmp.querySelectorAll('*').forEach(el => {
+    [...el.attributes].forEach(attr => {
+      if (/^on/i.test(attr.name) || (attr.name === 'href' && /^javascript:/i.test(attr.value))) {
+        el.removeAttribute(attr.name);
+      }
+    });
+  });
+  return tmp.innerHTML.trim();
+}
+
+document.querySelectorAll('.rte-toolbar button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const editor = document.getElementById('creation-commentaire');
+    editor.focus();
+    const cmd = btn.dataset.cmd;
+    if (cmd === 'createLink') {
+      const url = prompt('URL du lien :', 'https://');
+      if (url) document.execCommand(cmd, false, url);
+    } else {
+      document.execCommand(cmd, false, null);
+    }
+  });
+});
 
 async function onCreationPhotoChange(file) {
   if (!file) return;
@@ -1785,10 +1915,20 @@ function pointerCreationSurCarte() {
  */
 function afficherVerificationCreation(lat, lon, photoFile) {
   _creationPending = { lat, lon, alt: interpolateAlt(lat, lon), photoFile: photoFile || null };
+  _creationAudioFile = null;
+  _creationVideoFile = null;
 
   document.getElementById('creation-nom').value = '';
   document.getElementById('creation-nc').textContent = '0/40';
-  document.getElementById('creation-commentaire').value = '';
+  document.getElementById('creation-commentaire').innerHTML = '';
+  const audioLabel = document.getElementById('creation-audio-label');
+  audioLabel.textContent = '🎵 Ajouter un audio';
+  audioLabel.classList.remove('has-file');
+  document.getElementById('creation-audio-input').value = '';
+  const videoLabel = document.getElementById('creation-video-label');
+  videoLabel.textContent = '🎬 Ajouter une vidéo';
+  videoLabel.classList.remove('has-file');
+  document.getElementById('creation-video-input').value = '';
 
   const thumb = document.getElementById('creation-thumb');
   if (photoFile) {
@@ -1847,8 +1987,15 @@ async function ajouterWaypointCreation() {
   _addWpPending.lon = _creationPending.lon;
   _addWpPending.alt = _creationPending.alt;
   _addWpPending.photoFile = _creationPending.photoFile;
+  _addWpPending.audioFile = _creationAudioFile;
+  _addWpPending.videoFile = _creationVideoFile;
   document.getElementById('wp-add-name').value = document.getElementById('creation-nom').value;
-  document.getElementById('wp-add-comment').value = document.getElementById('creation-commentaire').value;
+  // La liste principale (édition/visite/export) garde un commentaire texte
+  // simple pour rester compatible avec le reste de l'app (zone de saisie,
+  // aide IA, export KML) : on récupère donc le texte brut de l'éditeur
+  // enrichi, la mise en forme n'étant conservée que dans l'export KMZ
+  // autonome ci-dessous.
+  document.getElementById('wp-add-comment').value = document.getElementById('creation-commentaire').textContent;
   await confirmAddWp();
   reinitialiserFormulaireCreation();
 }
@@ -1866,19 +2013,36 @@ async function enregistrerWaypointCreationKMZ() {
   btn.disabled = true; btn.textContent = '⏳ Génération…';
   try {
     const nom = document.getElementById('creation-nom').value.trim() || 'Waypoint';
-    const commentaire = document.getElementById('creation-commentaire').value.trim();
+    const commentaireHTML = gtSanitizeRichHTML(document.getElementById('creation-commentaire').innerHTML);
     const zip = new JSZip();
-    let photoTag = '';
+    const filesFolder = zip.folder('files');
+    let photoTag = '', photoPath = null;
     if (_creationPending.photoFile) {
       const photoOpt = await optimizePhoto(_creationPending.photoFile);
       const fname = sanitize(nom) + '.jpg';
-      zip.folder('files').file(fname, photoOpt);
-      photoTag = '<img src="files/' + fname + '" width="400" /><br/>';
+      filesFolder.file(fname, photoOpt);
+      photoPath = 'files/' + fname;
+      photoTag = '<img src="' + photoPath + '" width="400" /><br/>';
+    }
+    let audioPath = null;
+    if (_creationAudioFile) {
+      audioPath = 'files/audio.mp3';
+      filesFolder.file('audio.mp3', await _creationAudioFile.arrayBuffer());
+    }
+    let videoPath = null;
+    if (_creationVideoFile) {
+      videoPath = 'files/video.mp4';
+      filesFolder.file('video.mp4', await _creationVideoFile.arrayBuffer());
     }
     const x = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const cd = s => String(s).replace(/]]>/g, ']]' + '&gt;');
-    const descr = (photoTag || commentaire) ? '<description><![CDATA[' + photoTag + cd(commentaire) + ']]></description>' : '';
-    const kml = '<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><n>' + x(nom) + '</n>\n<Placemark><n>' + x(nom) + '</n>' + descr + '<Point><coordinates>' + _creationPending.lon + ',' + _creationPending.lat + ',' + (_creationPending.alt || 0) + '</coordinates></Point></Placemark>\n</Document></kml>';
+    const descr = (photoTag || commentaireHTML) ? '<description><![CDATA[' + photoTag + cd(commentaireHTML) + ']]></description>' : '';
+    const extParts = [];
+    if (photoPath) extParts.push('<Data name="photo"><value>' + x(photoPath) + '</value></Data>');
+    if (audioPath) extParts.push('<Data name="audio"><value>' + x(audioPath) + '</value></Data>');
+    if (videoPath) extParts.push('<Data name="video"><value>' + x(videoPath) + '</value></Data>');
+    const extData = extParts.length ? '<ExtendedData>' + extParts.join('') + '</ExtendedData>' : '';
+    const kml = '<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><n>' + x(nom) + '</n>\n<Placemark><n>' + x(nom) + '</n>' + descr + extData + '<Point><coordinates>' + _creationPending.lon + ',' + _creationPending.lat + ',' + (_creationPending.alt || 0) + '</coordinates></Point></Placemark>\n</Document></kml>';
     zip.file('doc.kml', kml);
 
     const fileName = sanitize(nom) + '.kmz';
@@ -1917,6 +2081,8 @@ async function enregistrerWaypointCreationKMZ() {
 function reinitialiserFormulaireCreation() {
   _creationPending = null;
   _creationPhotoFile = null;
+  _creationAudioFile = null;
+  _creationVideoFile = null;
   document.getElementById('creation-photo-input').value = '';
   document.getElementById('creation-file-name').textContent = 'Aucune photo choisie';
   document.getElementById('creation-gps-statut').textContent = '';
@@ -1924,11 +2090,21 @@ function reinitialiserFormulaireCreation() {
   document.getElementById('creation-verif').style.display = 'none';
   document.getElementById('creation-lat').value = '';
   document.getElementById('creation-lon').value = '';
+  document.getElementById('creation-lat-direct').value = '';
+  document.getElementById('creation-lon-direct').value = '';
+  document.getElementById('creation-audio-input').value = '';
+  document.getElementById('creation-video-input').value = '';
+  const audioLabel = document.getElementById('creation-audio-label');
+  audioLabel.textContent = '🎵 Ajouter un audio';
+  audioLabel.classList.remove('has-file');
+  const videoLabel = document.getElementById('creation-video-label');
+  videoLabel.textContent = '🎬 Ajouter une vidéo';
+  videoLabel.classList.remove('has-file');
 }
 
 // ── AJOUT MANUEL DE WAYPOINT ─────────────────────────
 let _addWpMode = false;
-let _addWpPending = { lat: null, lon: null, photoBlob: null, photoFile: null, alt: 0 };
+let _addWpPending = { lat: null, lon: null, photoBlob: null, photoFile: null, audioFile: null, videoFile: null, alt: 0 };
 
 function toggleAddWpMode() {
   _addWpMode = !_addWpMode;
@@ -1999,17 +2175,29 @@ async function confirmAddWp() {
     photoBlob = await optimizePhoto(_addWpPending.photoFile);
     photoName = _addWpPending.photoFile.name;
   }
+  let audioBlob = null, audioName = null;
+  if (_addWpPending.audioFile) {
+    audioBlob = _addWpPending.audioFile;
+    audioName = _addWpPending.audioFile.name;
+  }
+  let videoBlob = null, videoName = null;
+  if (_addWpPending.videoFile) {
+    videoBlob = _addWpPending.videoFile;
+    videoName = _addWpPending.videoFile.name;
+  }
   const id = state.waypoints.length
     ? Math.max(...state.waypoints.map(w => w.id)) + 1 : 0;
   const wp = {
     id, name, lat, lon, alt, comment,
     photoName, photoBlob, photoOptimized: photoBlob,
+    audioName, audioBlob, videoName, videoBlob,
     marker: null, _optimizedFname: null,
   };
   state.waypoints.push(wp);
   addMarker(wp);
   renderList();
   updateStats();
+  updateExportButtons();
   saveSession();
   closeAddWpModal();
   setTimeout(() => {
@@ -2021,7 +2209,7 @@ async function confirmAddWp() {
 
 function closeAddWpModal() {
   document.getElementById('wp-add-modal').classList.remove('open');
-  _addWpPending = { lat:null, lon:null, photoBlob:null, photoFile:null, alt:0 };
+  _addWpPending = { lat:null, lon:null, photoBlob:null, photoFile:null, audioFile:null, videoFile:null, alt:0 };
 }
 
 function interpolateAlt(lat, lon) {
@@ -2154,11 +2342,16 @@ function buildFolderName(commune) {
 
 function renderTree(folderName) {
   const photos = state.waypoints.filter(w=>w.photoBlob);
-  const lines = photos.length
+  const audios = state.waypoints.filter(w=>w.audioBlob);
+  const videos = state.waypoints.filter(w=>w.videoBlob);
+  const photoLines = photos.length
     ? photos.map(wp=>'│   ├── 📷 '+(wp.photoName||sanitize(wp.name)+'.jpg')).join('\n')
     : '│   └── (aucune photo)';
+  let extra = '';
+  if (audios.length) extra += '\n├── 📁 audio/\n'+audios.map(wp=>'│   ├── 🎵 '+sanitize(wp.name)+'.mp3').join('\n');
+  if (videos.length) extra += '\n├── 📁 video/\n'+videos.map(wp=>'│   ├── 🎬 '+sanitize(wp.name)+'.mp4').join('\n');
   document.getElementById('dp-tree').textContent =
-    '📁 '+folderName+'/\n├── 📁 photos/\n'+lines+
+    '📁 '+folderName+'/\n├── 📁 photos/\n'+photoLines+extra+
     '\n├── 📄 '+folderName+'.kml'+
     '\n├── 📄 '+folderName+'.gpx'+
     '\n└── 🌐 '+folderName+'.html';
@@ -2204,6 +2397,26 @@ async function generatePackage() {
     }
     if (!photoWps.length) setProgress('photos',100);
 
+    state.waypoints.forEach(wp=>{ if(!wp.audioBlob) wp._deployAudioFname=null; if(!wp.videoBlob) wp._deployVideoFname=null; });
+    const audioWps = state.waypoints.filter(w=>w.audioBlob);
+    if (audioWps.length) {
+      const audioFolder = folder.folder('audio');
+      for (const wp of audioWps) {
+        const fname = sanitize(wp.audioName?wp.audioName.replace(/\.[^.]+$/,''):sanitize(wp.name))+'.mp3';
+        wp._deployAudioFname = fname;
+        audioFolder.file(fname, wp.audioBlob);
+      }
+    }
+    const videoWps = state.waypoints.filter(w=>w.videoBlob);
+    if (videoWps.length) {
+      const videoFolder = folder.folder('video');
+      for (const wp of videoWps) {
+        const fname = sanitize(wp.videoName?wp.videoName.replace(/\.[^.]+$/,''):sanitize(wp.name))+'.mp4';
+        wp._deployVideoFname = fname;
+        videoFolder.file(fname, wp.videoBlob);
+      }
+    }
+
     const kmlStr = buildKML(folderName);
     folder.file(folderName+'.kml', kmlStr);
     setProgress('kml',100);
@@ -2241,7 +2454,11 @@ function buildKML(folderName) {
   const wpts = state.waypoints.map(wp=>{
     const photoTag = wp._optimizedFname ? '<img src="photos/'+wp._optimizedFname+'" style="max-width:300px"><br>' : '';
     const descr = (photoTag || wp.comment) ? '<description><![CDATA['+photoTag+cd(wp.comment||'')+']]></description>' : '';
-    const cmt = wp.comment ? '<ExtendedData><Data name="comment"><value>'+x(wp.comment)+'</value></Data></ExtendedData>' : '';
+    const extParts = [];
+    if (wp.comment) extParts.push('<Data name="comment"><value>'+x(wp.comment)+'</value></Data>');
+    if (wp._deployAudioFname) extParts.push('<Data name="audio"><value>audio/'+x(wp._deployAudioFname)+'</value></Data>');
+    if (wp._deployVideoFname) extParts.push('<Data name="video"><value>video/'+x(wp._deployVideoFname)+'</value></Data>');
+    const cmt = extParts.length ? '<ExtendedData>'+extParts.join('')+'</ExtendedData>' : '';
     return '<Placemark><name>'+x(wp.name)+'</name>'+descr+cmt+'<Point><coordinates>'+wp.lon+','+wp.lat+','+(wp.alt||0)+'</coordinates></Point></Placemark>';
   }).join('\n');
   return '<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>'+x(folderName)+'</name>\n'+track+'\n'+wpts+'\n</Document></kml>';
@@ -2249,7 +2466,12 @@ function buildKML(folderName) {
 
 function buildGPX() {
   const x = s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  const wpts = state.waypoints.map(wp=>'<wpt lat="'+wp.lat+'" lon="'+wp.lon+'"><ele>'+(wp.alt||0)+'</ele><name>'+x(wp.name)+'</name>'+(wp.comment?'<desc>'+x(wp.comment)+'</desc>':'')+'</wpt>').join('\n');
+  const wpts = state.waypoints.map(wp=>{
+    const links = [];
+    if (wp._deployAudioFname) links.push('<link href="audio/'+x(wp._deployAudioFname)+'"><text>Audio</text></link>');
+    if (wp._deployVideoFname) links.push('<link href="video/'+x(wp._deployVideoFname)+'"><text>Vidéo</text></link>');
+    return '<wpt lat="'+wp.lat+'" lon="'+wp.lon+'"><ele>'+(wp.alt||0)+'</ele><name>'+x(wp.name)+'</name>'+(wp.comment?'<desc>'+x(wp.comment)+'</desc>':'')+links.join('')+'</wpt>';
+  }).join('\n');
   const trkpts = state.trackCoords.map(c=>'<trkpt lat="'+c[0]+'" lon="'+c[1]+'"><ele>'+(c[2]||0)+'</ele></trkpt>').join('\n');
   return '<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Marando" xmlns="http://www.topografix.com/GPX/1/1">\n'+wpts+'\n<trk><name>'+x(state.rawFileName)+'</name><trkseg>\n'+trkpts+'\n</trkseg></trk>\n</gpx>';
 }
@@ -2268,7 +2490,12 @@ function buildSessionKML() {
   const wpts = state.waypoints.map(wp=>{
     const photoTag = wp._sessionPhotoFname ? '<img src="files/'+wp._sessionPhotoFname+'" width="400" /><br/>' : '';
     const descr = (photoTag || wp.comment) ? '<description><![CDATA['+photoTag+cd(wp.comment||'')+']]></description>' : '';
-    return '<Placemark><name>'+x(wp.name)+'</name>'+descr+'<Point><coordinates>'+wp.lon+','+wp.lat+','+(wp.alt||0)+'</coordinates></Point></Placemark>';
+    const extParts = [];
+    if (wp._sessionPhotoFname) extParts.push('<Data name="photo"><value>files/'+x(wp._sessionPhotoFname)+'</value></Data>');
+    if (wp._sessionAudioFname) extParts.push('<Data name="audio"><value>files/'+x(wp._sessionAudioFname)+'</value></Data>');
+    if (wp._sessionVideoFname) extParts.push('<Data name="video"><value>files/'+x(wp._sessionVideoFname)+'</value></Data>');
+    const extData = extParts.length ? '<ExtendedData>'+extParts.join('')+'</ExtendedData>' : '';
+    return '<Placemark><name>'+x(wp.name)+'</name>'+descr+extData+'<Point><coordinates>'+wp.lon+','+wp.lat+','+(wp.alt||0)+'</coordinates></Point></Placemark>';
   }).join('\n');
   return '<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>'+x(state.rawFileName||'randonnee')+'</name>\n'+track+'\n'+wpts+'\n</Document></kml>';
 }
@@ -2291,6 +2518,19 @@ async function saveSessionKMZ() {
       filesFolder.file(fname, wp.photoOptimized);
     }
     state.waypoints.forEach(wp => { if (!wp.photoBlob) wp._sessionPhotoFname = null; });
+
+    for (const wp of state.waypoints) {
+      if (wp.audioBlob) {
+        const fname = sanitize(wp.name) + '-audio.mp3';
+        wp._sessionAudioFname = fname;
+        filesFolder.file(fname, wp.audioBlob);
+      } else { wp._sessionAudioFname = null; }
+      if (wp.videoBlob) {
+        const fname = sanitize(wp.name) + '-video.mp4';
+        wp._sessionVideoFname = fname;
+        filesFolder.file(fname, wp.videoBlob);
+      } else { wp._sessionVideoFname = null; }
+    }
 
     zip.file('doc.kml', buildSessionKML());
 
@@ -2333,12 +2573,12 @@ function buildViewer(folderName, kmlStr, gpxStr) {
   const toB64 = str => btoa(unescape(encodeURIComponent(str)));
   const kmlB64  = toB64(kmlStr);
   const gpxB64  = toB64(gpxStr);
-  const jsonB64 = toB64(JSON.stringify({name:folderName,waypoints:state.waypoints.map(wp=>({name:wp.name,lat:wp.lat,lon:wp.lon,alt:wp.alt,comment:wp.comment,photo:wp._optimizedFname||null})),track:state.trackCoords},null,2));
-  const wpData   = JSON.stringify(state.waypoints.map(wp=>({name:wp.name,lat:wp.lat,lon:wp.lon,alt:wp.alt,comment:wp.comment,photo:wp._optimizedFname?'photos/'+wp._optimizedFname:null})));
+  const jsonB64 = toB64(JSON.stringify({name:folderName,waypoints:state.waypoints.map(wp=>({name:wp.name,lat:wp.lat,lon:wp.lon,alt:wp.alt,comment:wp.comment,photo:wp._optimizedFname||null,audio:wp._deployAudioFname||null,video:wp._deployVideoFname||null})),track:state.trackCoords},null,2));
+  const wpData   = JSON.stringify(state.waypoints.map(wp=>({name:wp.name,lat:wp.lat,lon:wp.lon,alt:wp.alt,comment:wp.comment,photo:wp._optimizedFname?'photos/'+wp._optimizedFname:null,audio:wp._deployAudioFname?'audio/'+wp._deployAudioFname:null,video:wp._deployVideoFname?'video/'+wp._deployVideoFname:null})));
   const trackData= JSON.stringify(state.trackCoords.map(c=>[c[0],c[1]]));
   const LAYER    = state.mapLayer;
 
-  return '<!DOCTYPE html>\n<html>\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width,initial-scale=1">\n<title>'+folderName+'</title>\n<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">\n<style>\nbody{margin:0;font-family:system-ui}\n#map{height:100vh}\n.controls{position:absolute;top:10px;left:10px;z-index:1000;background:white;padding:12px 15px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,.2);display:flex;flex-wrap:wrap;gap:6px;max-width:92vw}\n.controls button{padding:10px 16px;border:none;border-radius:5px;cursor:pointer;background:#2d5a1b;color:white;font-size:14px;font-weight:600;white-space:nowrap}\n.controls button:hover{background:#4a7c35}\n.lp-img{width:100%;max-height:170px;object-fit:cover;border-radius:5px;margin-bottom:6px;display:block}\n.lp-enl{width:100%;padding:5px;border-radius:4px;background:#e8f5e9;border:1px solid #4a7c35;color:#2d5a1b;font-size:13px;cursor:pointer;margin-bottom:4px}\n#modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center}\n#modal.open{display:flex}\n#modal img{max-width:92vw;max-height:88vh;border-radius:8px}\n#mx{position:absolute;top:16px;right:16px;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.2);border:none;color:white;font-size:1.1rem;cursor:pointer}\n@media print{.controls{display:none}}\n</style>\n</head>\n<body>\n<div id="map"></div>\n<div class="controls">\n  <button onclick="dl(\''+kmlB64+'\',\''+folderName+'.kml\',\'application/vnd.google-earth.kml+xml\')">📥 KML</button>\n  <button onclick="dl(\''+gpxB64+'\',\''+folderName+'.gpx\',\'application/gpx+xml\')">📥 GPX</button>\n  <button onclick="dl(\''+jsonB64+'\',\''+folderName+'.json\',\'application/json\')">📥 JSON</button>\n  <button onclick="window.print()">🖨️ Imprimer / PDF</button>\n</div>\n<div id="modal" onclick="cm(event)"><button id="mx" onclick="cm()">✕</button><img id="mi" src="" alt=""></div>\n<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>\n<script>\nvar wps='+wpData+';\nvar track='+trackData+';\nvar map=L.map(\'map\');\n(({\'osm\':L.tileLayer(\'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png\',{attribution:\'© OpenStreetMap\',maxZoom:19}),\'ign-plan\':L.tileLayer(\'https://data.geopf.fr/wmts?layer=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&style=normal&tilematrixset=PM&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image%2Fpng&TileMatrix={z}&TileCol={x}&TileRow={y}\',{attribution:\'© IGN\',maxZoom:19}),\'ign-ortho\':L.tileLayer(\'https://data.geopf.fr/wmts?layer=ORTHOIMAGERY.ORTHOPHOTOS&style=normal&tilematrixset=PM&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image%2Fjpeg&TileMatrix={z}&TileCol={x}&TileRow={y}\',{attribution:\'© IGN\',maxZoom:20})})[\''+LAYER+'\']||L.tileLayer(\'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png\')).addTo(map);\nif(track.length>1){var _s=document.createElement(\'style\');_s.textContent=\'@keyframes ma-fw{to{stroke-dashoffset:-21}}.ma-trail{animation:ma-fw .65s linear infinite;stroke-linecap:round;}\'; document.head.appendChild(_s);L.polyline(track,{color:\'#2d5a1b\',weight:6,opacity:.45,interactive:false}).addTo(map);var _r=L.svg({padding:0.5});var pl=L.polyline(track,{color:\'#7aad5a\',weight:4,renderer:_r,interactive:false}).addTo(map);pl.on(\'add\',function(){var e=pl._path;if(e){e.setAttribute(\'stroke-dasharray\',\'12 9\');e.classList.add(\'ma-trail\');}});map.fitBounds(pl.getBounds(),{padding:[40,40]});}else if(wps.length){map.setView([wps[0].lat,wps[0].lon],14);}\nif(track.length<=1&&wps.length>1){map.fitBounds(L.latLngBounds(wps.map(function(w){return[w.lat,w.lon];})),{padding:[40,40]});}\nwps.forEach(function(wp){var p=!!wp.photo;var icon=L.divIcon({className:\'\',html:\'<div style="width:30px;height:30px;border-radius:50% 50% 50% 0;background:\'+(p?\'#5c3d1e\':\'#2d5a1b\')+\';border:2px solid \'+(p?\'#c87040\':\'#7aad5a\')+\';display:flex;align-items:center;justify-content:center;font-size:13px;transform:rotate(-45deg);box-shadow:0 2px 6px rgba(0,0,0,.4)"><span style="transform:rotate(45deg)">\'+(p?\'📷\':\'📍\')+\'</span></div>\',iconSize:[30,30],iconAnchor:[15,30],popupAnchor:[0,-32]});var imgH=wp.photo?\'<img class="lp-img" src="\'+wp.photo+\'"><button class="lp-enl" data-src="\'+wp.photo+\'">🔍 Agrandir</button>\':\'\';;var c=\'<div style="padding:10px;min-width:200px"><h4 style="margin:0 0 8px;color:#2d5a1b">\'+wp.name+\'</h4>\'+imgH+\'<p style="margin:4px 0;font-size:13px;color:#555">🌐 \'+wp.lat.toFixed(6)+\', \'+wp.lon.toFixed(6)+\'</p><p style="margin:4px 0;font-size:13px;color:#555">⛰️ \'+Math.round(wp.alt)+\' m</p>\'+(wp.comment?\'<p style="margin:6px 0;font-size:13px">💬 \'+wp.comment+\'</p>\':\'\')+ \'</div>\';L.marker([wp.lat,wp.lon],{icon:icon}).bindPopup(c,{maxWidth:300}).addTo(map);});\ndocument.addEventListener(\'click\',function(e){if(e.target.classList.contains(\'lp-enl\')&&e.target.dataset.src)om(e.target.dataset.src);});\nfunction dl(b64,name,mime){var a=document.createElement(\'a\');a.href=\'data:\'+mime+\';base64,\'+b64;a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);}\nfunction om(src){document.getElementById(\'mi\').src=src;document.getElementById(\'modal\').classList.add(\'open\');}\nfunction cm(e){if(!e||e.target===document.getElementById(\'modal\')||e.target===document.getElementById(\'mx\'))document.getElementById(\'modal\').classList.remove(\'open\');}\n<\/script>\n</body>\n</html>';
+  return '<!DOCTYPE html>\n<html>\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width,initial-scale=1">\n<title>'+folderName+'</title>\n<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">\n<style>\nbody{margin:0;font-family:system-ui}\n#map{height:100vh}\n.controls{position:absolute;top:10px;left:10px;z-index:1000;background:white;padding:12px 15px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,.2);display:flex;flex-wrap:wrap;gap:6px;max-width:92vw}\n.controls button{padding:10px 16px;border:none;border-radius:5px;cursor:pointer;background:#2d5a1b;color:white;font-size:14px;font-weight:600;white-space:nowrap}\n.controls button:hover{background:#4a7c35}\n.lp-img{width:100%;max-height:170px;object-fit:cover;border-radius:5px;margin-bottom:6px;display:block}\n.lp-enl{width:100%;padding:5px;border-radius:4px;background:#e8f5e9;border:1px solid #4a7c35;color:#2d5a1b;font-size:13px;cursor:pointer;margin-bottom:4px}\n.lp-audio,.lp-video{width:100%;margin:6px 0;display:block;border-radius:4px}\n.lp-video{max-height:160px}\n#modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center}\n#modal.open{display:flex}\n#modal img{max-width:92vw;max-height:88vh;border-radius:8px}\n#mx{position:absolute;top:16px;right:16px;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.2);border:none;color:white;font-size:1.1rem;cursor:pointer}\n@media print{.controls{display:none}}\n</style>\n</head>\n<body>\n<div id="map"></div>\n<div class="controls">\n  <button onclick="dl(\''+kmlB64+'\',\''+folderName+'.kml\',\'application/vnd.google-earth.kml+xml\')">📥 KML</button>\n  <button onclick="dl(\''+gpxB64+'\',\''+folderName+'.gpx\',\'application/gpx+xml\')">📥 GPX</button>\n  <button onclick="dl(\''+jsonB64+'\',\''+folderName+'.json\',\'application/json\')">📥 JSON</button>\n  <button onclick="window.print()">🖨️ Imprimer / PDF</button>\n</div>\n<div id="modal" onclick="cm(event)"><button id="mx" onclick="cm()">✕</button><img id="mi" src="" alt=""></div>\n<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>\n<script>\nvar wps='+wpData+';\nvar track='+trackData+';\nvar map=L.map(\'map\');\n(({\'osm\':L.tileLayer(\'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png\',{attribution:\'© OpenStreetMap\',maxZoom:19}),\'ign-plan\':L.tileLayer(\'https://data.geopf.fr/wmts?layer=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&style=normal&tilematrixset=PM&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image%2Fpng&TileMatrix={z}&TileCol={x}&TileRow={y}\',{attribution:\'© IGN\',maxZoom:19}),\'ign-ortho\':L.tileLayer(\'https://data.geopf.fr/wmts?layer=ORTHOIMAGERY.ORTHOPHOTOS&style=normal&tilematrixset=PM&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image%2Fjpeg&TileMatrix={z}&TileCol={x}&TileRow={y}\',{attribution:\'© IGN\',maxZoom:20})})[\''+LAYER+'\']||L.tileLayer(\'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png\')).addTo(map);\nif(track.length>1){var _s=document.createElement(\'style\');_s.textContent=\'@keyframes ma-fw{to{stroke-dashoffset:-21}}.ma-trail{animation:ma-fw .65s linear infinite;stroke-linecap:round;}\'; document.head.appendChild(_s);L.polyline(track,{color:\'#2d5a1b\',weight:6,opacity:.45,interactive:false}).addTo(map);var _r=L.svg({padding:0.5});var pl=L.polyline(track,{color:\'#7aad5a\',weight:4,renderer:_r,interactive:false}).addTo(map);pl.on(\'add\',function(){var e=pl._path;if(e){e.setAttribute(\'stroke-dasharray\',\'12 9\');e.classList.add(\'ma-trail\');}});map.fitBounds(pl.getBounds(),{padding:[40,40]});}else if(wps.length){map.setView([wps[0].lat,wps[0].lon],14);}\nif(track.length<=1&&wps.length>1){map.fitBounds(L.latLngBounds(wps.map(function(w){return[w.lat,w.lon];})),{padding:[40,40]});}\nwps.forEach(function(wp){var p=!!wp.photo;var icon=L.divIcon({className:\'\',html:\'<div style="width:30px;height:30px;border-radius:50% 50% 50% 0;background:\'+(p?\'#5c3d1e\':\'#2d5a1b\')+\';border:2px solid \'+(p?\'#c87040\':\'#7aad5a\')+\';display:flex;align-items:center;justify-content:center;font-size:13px;transform:rotate(-45deg);box-shadow:0 2px 6px rgba(0,0,0,.4)"><span style="transform:rotate(45deg)">\'+(p?\'📷\':\'📍\')+\'</span></div>\',iconSize:[30,30],iconAnchor:[15,30],popupAnchor:[0,-32]});var imgH=wp.photo?\'<img class="lp-img" src="\'+wp.photo+\'"><button class="lp-enl" data-src="\'+wp.photo+\'">🔍 Agrandir</button>\':\'\';;var audioH=wp.audio?\'<audio class="lp-audio" controls src="\'+wp.audio+\'"></audio>\':\'\';var videoH=wp.video?\'<video class="lp-video" controls src="\'+wp.video+\'"></video>\':\'\';var c=\'<div style="padding:10px;min-width:200px"><h4 style="margin:0 0 8px;color:#2d5a1b">\'+wp.name+\'</h4>\'+imgH+audioH+videoH+\'<p style="margin:4px 0;font-size:13px;color:#555">🌐 \'+wp.lat.toFixed(6)+\', \'+wp.lon.toFixed(6)+\'</p><p style="margin:4px 0;font-size:13px;color:#555">⛰️ \'+Math.round(wp.alt)+\' m</p>\'+(wp.comment?\'<p style="margin:6px 0;font-size:13px">💬 \'+wp.comment+\'</p>\':\'\')+ \'</div>\';L.marker([wp.lat,wp.lon],{icon:icon}).bindPopup(c,{maxWidth:300}).addTo(map);});\ndocument.addEventListener(\'click\',function(e){if(e.target.classList.contains(\'lp-enl\')&&e.target.dataset.src)om(e.target.dataset.src);});\nfunction dl(b64,name,mime){var a=document.createElement(\'a\');a.href=\'data:\'+mime+\';base64,\'+b64;a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);}\nfunction om(src){document.getElementById(\'mi\').src=src;document.getElementById(\'modal\').classList.add(\'open\');}\nfunction cm(e){if(!e||e.target===document.getElementById(\'modal\')||e.target===document.getElementById(\'mx\'))document.getElementById(\'modal\').classList.remove(\'open\');}\n<\/script>\n</body>\n</html>';
 }
 
 
@@ -2912,6 +3152,9 @@ function startVisite(){
 function stopVisite(){
   window.speechSynthesis && window.speechSynthesis.cancel();
   document.getElementById('visite-overlay').style.display='none';
+  const va=document.getElementById('visite-audio'),vv=document.getElementById('visite-video');
+  if(va){va.pause();va.removeAttribute('src');}
+  if(vv){vv.pause();vv.removeAttribute('src');}
   resetVisitePhotoZoom();
   if(_vTravM){_vMap.removeLayer(_vTravM);_vTravM=null;}
   if(_vWpM){_vMap.removeLayer(_vWpM);_vWpM=null;}
@@ -2963,6 +3206,13 @@ function vShowSlide(i, fromIdx){
   const ph=document.getElementById('visite-photo'),np=document.getElementById('visite-no-photo');
   if(wp.photoBlob){ph.src=URL.createObjectURL(wp.photoBlob);ph.style.display='block';np.style.display='none';}
   else{ph.style.display='none';ph.src='';np.style.display='block';}
+
+  const va=document.getElementById('visite-audio'),vv=document.getElementById('visite-video');
+  va.pause(); vv.pause();
+  if(wp.audioBlob){va.src=URL.createObjectURL(wp.audioBlob);va.style.display='block';}
+  else{va.removeAttribute('src');va.style.display='none';}
+  if(wp.videoBlob){vv.src=URL.createObjectURL(wp.videoBlob);vv.style.display='block';}
+  else{vv.removeAttribute('src');vv.style.display='none';}
 
   if(_vWpM) _vMap.removeLayer(_vWpM);
   _vWpM=L.circleMarker([wp.lat,wp.lon],{radius:9,color:'#d4f0a0',weight:3,fillColor:'#7aad5a',fillOpacity:1}).addTo(_vMap);
@@ -3060,7 +3310,7 @@ async function exportVisite(){
   const offline = document.getElementById('chk-export-offline') && document.getElementById('chk-export-offline').checked && state.mbtiles && state.mbtiles.db;
   toast(offline ? 'Génération du diaporama hors-ligne (peut prendre un moment)…' : 'Generation du diaporama...');
   async function b64(blob){if(!blob)return null;return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(blob);});}
-  const slides=await Promise.all(state.waypoints.map(async wp=>({name:wp.name,comment:wp.comment||'',lat:wp.lat,lon:wp.lon,photo:wp.photoBlob?await b64(wp.photoBlob):null})));
+  const slides=await Promise.all(state.waypoints.map(async wp=>({name:wp.name,comment:wp.comment||'',lat:wp.lat,lon:wp.lon,photo:wp.photoBlob?await b64(wp.photoBlob):null,audio:wp.audioBlob?await b64(wp.audioBlob):null,video:wp.videoBlob?await b64(wp.videoBlob):null})));
   const trackData=JSON.stringify(state.trackCoords.map(c=>[c[0],c[1]]));
   const slidesData=JSON.stringify(slides);
   const title=state.rawFileName||'Visite';
@@ -3123,7 +3373,7 @@ async function exportVisite(){
       offlineHeadExtra=''; offlineScriptExtra='';
     }
   }
-  const css='@keyframes ma-fw{to{stroke-dashoffset:-22}}.ma-trail-export{stroke-linecap:round;animation:ma-fw .55s linear infinite;}*{box-sizing:border-box;margin:0;padding:0}html{height:100%}body{background:#000;font-family:system-ui;color:#f0ebe0;height:100dvh;overflow:hidden;display:flex;flex-direction:column}#vmap-wrap{flex:0 0 38vh;position:relative;min-height:0;transition:flex-basis .32s ease}body.photo-zoomed #vmap-wrap{flex-basis:9vh}#vmap{width:100%;height:100%}#hud{position:absolute;top:0;left:0;right:0;background:linear-gradient(rgba(0,0,0,.7),transparent);padding:8px 14px;display:flex;align-items:center;gap:10px;z-index:500}#prog-txt{font-family:monospace;font-size:.72rem;color:#b8d4a0;flex-shrink:0}#prog-bar{flex:1;height:3px;background:rgba(255,255,255,.15);border-radius:2px;overflow:hidden}#prog-fill{height:100%;background:#7aad5a;border-radius:2px;transition:width .4s}#photo-wrap{flex:1 1 auto;min-height:0;position:relative;background:#0a0f07;display:flex;align-items:center;justify-content:center;overflow:hidden;transition:flex-basis .32s ease}#slide-photo{max-width:100%;max-height:100%;object-fit:contain;display:none;cursor:pointer}#no-photo{font-size:5rem;opacity:.15;cursor:pointer}#zoom-btn{position:absolute;top:8px;right:10px;z-index:520;width:32px;height:32px;border-radius:50%;border:none;background:rgba(0,0,0,.45);color:#b8d4a0;font-size:.95rem;cursor:pointer}#zoom-btn:hover{background:rgba(0,0,0,.7);color:#fff}#info-bar{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.92));padding:14px 16px;max-height:45%}#wp-name{font-family:monospace;font-size:.95rem;font-weight:700;color:#7aad5a;margin-bottom:3px}#wp-comment{font-size:.78rem;color:#b8d4a0;line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}#controls{flex:0 0 auto;display:flex;gap:8px;justify-content:center;padding:12px 10px;padding-bottom:calc(12px + env(safe-area-inset-bottom));background:#0d1a09;border-top:1px solid rgba(255,255,255,.08)}.ctrl-btn{padding:13px 18px;border-radius:24px;border:none;font-size:.82rem;font-weight:600;cursor:pointer;font-family:system-ui;-webkit-tap-highlight-color:transparent}.ctrl-btn:disabled{opacity:.35;cursor:default}#btn-next,#btn-prev{background:rgba(255,255,255,.14);color:#b8d4a0;min-width:80px}#btn-tts{background:rgba(74,124,53,.9);color:#f8f5ee;flex:1;max-width:200px}#gps-status{font-family:monospace;font-size:.68rem;color:#7aad5a;flex-shrink:0;margin-left:auto;white-space:nowrap}.gps-dot-icon{position:absolute;top:0;left:0;width:16px;height:16px;background:#2196f3;border:2px solid #fff;border-radius:50%;box-shadow:0 0 4px rgba(0,0,0,.5)}.gps-pulse{position:absolute;top:0;left:0;width:16px;height:16px;border-radius:50%;background:#2196f3;opacity:.55;animation:gps-pulse-anim 1.8s ease-out infinite}@keyframes gps-pulse-anim{0%{transform:scale(1);opacity:.55}100%{transform:scale(3.2);opacity:0}}';
+  const css='@keyframes ma-fw{to{stroke-dashoffset:-22}}.ma-trail-export{stroke-linecap:round;animation:ma-fw .55s linear infinite;}*{box-sizing:border-box;margin:0;padding:0}html{height:100%}body{background:#000;font-family:system-ui;color:#f0ebe0;height:100dvh;overflow:hidden;display:flex;flex-direction:column}#vmap-wrap{flex:0 0 38vh;position:relative;min-height:0;transition:flex-basis .32s ease}body.photo-zoomed #vmap-wrap{flex-basis:9vh}#vmap{width:100%;height:100%}#hud{position:absolute;top:0;left:0;right:0;background:linear-gradient(rgba(0,0,0,.7),transparent);padding:8px 14px;display:flex;align-items:center;gap:10px;z-index:500}#prog-txt{font-family:monospace;font-size:.72rem;color:#b8d4a0;flex-shrink:0}#prog-bar{flex:1;height:3px;background:rgba(255,255,255,.15);border-radius:2px;overflow:hidden}#prog-fill{height:100%;background:#7aad5a;border-radius:2px;transition:width .4s}#photo-wrap{flex:1 1 auto;min-height:0;position:relative;background:#0a0f07;display:flex;align-items:center;justify-content:center;overflow:hidden;transition:flex-basis .32s ease}#slide-photo{max-width:100%;max-height:100%;object-fit:contain;display:none;cursor:pointer}#no-photo{font-size:5rem;opacity:.15;cursor:pointer}#zoom-btn{position:absolute;top:8px;right:10px;z-index:520;width:32px;height:32px;border-radius:50%;border:none;background:rgba(0,0,0,.45);color:#b8d4a0;font-size:.95rem;cursor:pointer}#zoom-btn:hover{background:rgba(0,0,0,.7);color:#fff}#info-bar{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.92));padding:14px 16px;max-height:45%}#wp-name{font-family:monospace;font-size:.95rem;font-weight:700;color:#7aad5a;margin-bottom:3px}#wp-comment{font-size:.78rem;color:#b8d4a0;line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}#slide-audio{width:100%;margin-top:6px;display:none;height:32px}#slide-video{width:100%;max-height:140px;margin-top:6px;display:none;border-radius:6px}#controls{flex:0 0 auto;display:flex;gap:8px;justify-content:center;padding:12px 10px;padding-bottom:calc(12px + env(safe-area-inset-bottom));background:#0d1a09;border-top:1px solid rgba(255,255,255,.08)}.ctrl-btn{padding:13px 18px;border-radius:24px;border:none;font-size:.82rem;font-weight:600;cursor:pointer;font-family:system-ui;-webkit-tap-highlight-color:transparent}.ctrl-btn:disabled{opacity:.35;cursor:default}#btn-next,#btn-prev{background:rgba(255,255,255,.14);color:#b8d4a0;min-width:80px}#btn-tts{background:rgba(74,124,53,.9);color:#f8f5ee;flex:1;max-width:200px}#gps-status{font-family:monospace;font-size:.68rem;color:#7aad5a;flex-shrink:0;margin-left:auto;white-space:nowrap}.gps-dot-icon{position:absolute;top:0;left:0;width:16px;height:16px;background:#2196f3;border:2px solid #fff;border-radius:50%;box-shadow:0 0 4px rgba(0,0,0,.5)}.gps-pulse{position:absolute;top:0;left:0;width:16px;height:16px;border-radius:50%;background:#2196f3;opacity:.55;animation:gps-pulse-anim 1.8s ease-out infinite}@keyframes gps-pulse-anim{0%{transform:scale(1);opacity:.55}100%{transform:scale(3.2);opacity:0}}';
   const jsMain=`var slides=${slidesData};var track=${trackData};
 var idx=0;
 var vmap=L.map('vmap',{zoomControl:false,attributionControl:false});
@@ -3236,6 +3486,10 @@ function showSlide(i, fromIdx){
   var ph=document.getElementById('slide-photo'),np=document.getElementById('no-photo');
   if(s.photo){ph.src=s.photo;ph.style.display='block';np.style.display='none';}
   else{ph.style.display='none';np.style.display='block';}
+  var sa=document.getElementById('slide-audio'),sv=document.getElementById('slide-video');
+  sa.pause();sv.pause();
+  if(s.audio){sa.src=s.audio;sa.style.display='block';}else{sa.removeAttribute('src');sa.style.display='none';}
+  if(s.video){sv.src=s.video;sv.style.display='block';}else{sv.removeAttribute('src');sv.style.display='none';}
   if(wpM)vmap.removeLayer(wpM);
   wpM=L.circleMarker([s.lat,s.lon],{radius:9,color:'#d4f0a0',weight:3,fillColor:'#7aad5a',fillOpacity:1}).addTo(vmap);
   if(typeof fromIdx==='number' && fromIdx!==i){
@@ -3263,6 +3517,8 @@ function readComment(){
   var s=slides[idx];
   var txt=(s.comment||s.name||'').trim();
   if(!txt)return;
+  var sa=document.getElementById('slide-audio'),sv=document.getElementById('slide-video');
+  if(sa)sa.pause(); if(sv)sv.pause();
   window.speechSynthesis.cancel();
   window.speechSynthesis.resume();
   var u=new SpeechSynthesisUtterance(txt);
@@ -3306,7 +3562,7 @@ function photoHoverOut(){
   const html='<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>'+title+' - Visite</title>'+headLeaflet+'<style>'+css+'</style></head>'
     +'<body><div id="splash" style="display:none"></div>'
     +'<div id="vmap-wrap"><div id="vmap"></div><div id="hud"><span id="prog-txt">1 / '+slides.length+'</span><div id="prog-bar"><div id="prog-fill" style="width:0%"></div></div><span id="gps-status"></span></div></div>'
-    +'<div id="photo-wrap" onmouseenter="photoHoverIn()" onmouseleave="photoHoverOut()"><img id="slide-photo" src="" alt="" onclick="toggleZoom()"><div id="no-photo" onclick="toggleZoom()">~</div><button id="zoom-btn" onclick="toggleZoom()" title="Agrandir / reduire la photo">&#9974;</button><div id="info-bar"><div id="wp-name"></div><div id="wp-comment"></div></div>'
+    +'<div id="photo-wrap" onmouseenter="photoHoverIn()" onmouseleave="photoHoverOut()"><img id="slide-photo" src="" alt="" onclick="toggleZoom()"><div id="no-photo" onclick="toggleZoom()">~</div><button id="zoom-btn" onclick="toggleZoom()" title="Agrandir / reduire la photo">&#9974;</button><div id="info-bar"><div id="wp-name"></div><div id="wp-comment"></div><audio id="slide-audio" controls></audio><video id="slide-video" controls></video></div>'
     +'</div>'
     +'<div id="controls"><button class="ctrl-btn" id="btn-prev" onclick="go(-1)">&laquo; Prec.</button><button class="ctrl-btn" id="btn-tts" onclick="readComment()">Lire le commentaire</button><button class="ctrl-btn" id="btn-next" onclick="go(1)">Suiv. &raquo;</button></div>'
     +bodyLeafletScript
@@ -3334,6 +3590,8 @@ async function saveSession() {
         id: wp.id, name: wp.name, lat: wp.lat, lon: wp.lon,
         alt: wp.alt, comment: wp.comment,
         photoName: wp.photoName, hasPhoto: !!wp.photoBlob,
+        audioName: wp.audioName, hasAudio: !!wp.audioBlob,
+        videoName: wp.videoName, hasVideo: !!wp.videoBlob,
       })),
       savedAt: new Date().toISOString(),
     };
@@ -3341,6 +3599,8 @@ async function saveSession() {
     await idbClear();
     for (const wp of state.waypoints) {
       if (wp.photoBlob) await idbSet('photo_'+wp.id, wp.photoOptimized||wp.photoBlob);
+      if (wp.audioBlob) await idbSet('audio_'+wp.id, wp.audioBlob);
+      if (wp.videoBlob) await idbSet('video_'+wp.id, wp.videoBlob);
     }
   } catch(e) {}
 }
@@ -3358,10 +3618,13 @@ async function loadSession() {
     state.trackCoords = data.trackCoords || [];
     state.waypoints   = (data.waypoints || []).map(wp => ({
       ...wp,
-      photoBlob: null, photoOptimized: null, marker: null, _optimizedFname: null,
+      photoBlob: null, photoOptimized: null, audioBlob: null, videoBlob: null,
+      marker: null, _optimizedFname: null,
     }));
     for (const wp of state.waypoints) {
       if (wp.hasPhoto) { const b=await idbGet('photo_'+wp.id); if(b){wp.photoBlob=b;wp.photoOptimized=b;} }
+      if (wp.hasAudio) { const b=await idbGet('audio_'+wp.id); if(b){wp.audioBlob=b;} }
+      if (wp.hasVideo) { const b=await idbGet('video_'+wp.id); if(b){wp.videoBlob=b;} }
     }
 
     document.getElementById('file-name-display').textContent = data.rawFileName + ' (session restaurée)';
