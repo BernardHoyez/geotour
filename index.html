@@ -3506,8 +3506,8 @@ async function exportVisite(){
 
   const offline = document.getElementById('chk-export-offline') && document.getElementById('chk-export-offline').checked && state.mbtiles && state.mbtiles.db;
   toast(offline ? 'Génération du diaporama hors-ligne (peut prendre un moment)…' : 'Generation du diaporama...');
-  async function b64(blob){if(!blob)return null;return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(blob);});}
-  const slides=await Promise.all(state.waypoints.map(async wp=>({name:wp.name,comment:wp.comment||'',lat:wp.lat,lon:wp.lon,photo:wp.photoBlob?await b64(wp.photoBlob):null,audio:wp.audioBlob?await b64(wp.audioBlob):null,video:wp.videoBlob?await b64(wp.videoBlob):null})));
+  async function b64(blob, mime){if(!blob)return null;const typed=(mime && blob.type!==mime)?new Blob([blob],{type:mime}):blob;return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(typed);});}
+  const slides=await Promise.all(state.waypoints.map(async wp=>({name:wp.name,comment:wp.comment||'',lat:wp.lat,lon:wp.lon,photo:wp.photoBlob?await b64(wp.photoBlob):null,audio:wp.audioBlob?await b64(wp.audioBlob,'audio/mpeg'):null,video:wp.videoBlob?await b64(wp.videoBlob,'video/mp4'):null})));
   const trackData=JSON.stringify(state.trackCoords.map(c=>[c[0],c[1]]));
   const slidesData=JSON.stringify(slides);
   const title=state.rawFileName||'Visite';
