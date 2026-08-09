@@ -25,11 +25,12 @@ GeoTour réunit les fonctionnalités de trois applications précédentes (**rand
   - **➕ Ajouter** : les waypoints du fichier s'ajoutent à la liste existante, sans toucher à la trace déjà chargée.
 - **Fond de carte** : OSM, IGN Plan, IGN Ortho, ou **MBtiles** (fichier local chargé au préalable — voir plus bas). Les fonds IGN Plan/Ortho nécessitent une connexion réseau.
 - **Ajouter un waypoint manuellement** : cliquer sur la carte, ou utiliser le bouton dédié, pour ouvrir la fiche waypoint (photo optionnelle, nom, commentaire).
-- **Liste des waypoints** : chaque carte affiche un aperçu (📷 si une photo est associée, 🎵/🎬 si un audio/vidéo est associé), le nom, le commentaire.
+- **Liste des waypoints** : chaque carte affiche un aperçu (📷 si une photo est associée, 🎵/🎬 si un audio/vidéo est associé), le nom, le commentaire, et permet désormais aussi d'associer ou retirer directement un **audio (mp3)** et une **vidéo (mp4)** (mêmes emplacements que la photo).
   - **Réordonner** : saisir la poignée **⠿** à gauche de la carte et glisser vers le haut/bas. L'ordre choisi ici pilote aussi l'ordre de défilement du diaporama (onglet Visite).
 - **Charger un fond MBtiles** : sélectionner un fichier `.mbtiles` généré dans l'onglet 🛰️ Générer MBtiles (ou produit par un autre outil, type MOBAC). Une fois chargé, il devient sélectionnable comme fond de carte, y compris sans réseau.
-- **💾 Sauvegarder la session en KMZ** : exporte les waypoints et la trace actuels dans un fichier KMZ autonome (photos, audio et vidéo inclus), pour partage ou sauvegarde.
+- **💾 Sauvegarder la session en KMZ** : exporte les waypoints et la trace actuels dans un fichier KMZ autonome (photos, audio et vidéo inclus), pour partage ou sauvegarde. Un fichier ainsi exporté peut être réimporté plus tard (glisser dans la zone d'import) : photo, audio et vidéo de chaque waypoint sont alors correctement retrouvés.
 - **Statistiques** : nombre de waypoints, distance, D+ / D- (dénivelé positif/négatif), calculés automatiquement à partir de la trace.
+- La session est aussi sauvegardée automatiquement en arrière-plan (pour la retrouver après un rechargement accidentel de la page), que la session ait démarré par l'import d'un fichier ou entièrement depuis l'onglet Création.
 
 ---
 

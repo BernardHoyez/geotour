@@ -1019,6 +1019,8 @@ const state = {
   trackCoords: [],
   mapLayer: 'osm',
   _photoMap: {},
+  _audioMap: {},
+  _videoMap: {},
 };
 
 // ── CARTE ────────────────────────────────────────────
@@ -1176,6 +1178,8 @@ async function loadKMZ(file, modeOverride) {
       disp.textContent = (disp.textContent === 'Aucun fichier chargé' ? file.name : disp.textContent + ' + ' + file.name);
     }
     state._photoMap = {};
+    state._audioMap = {};
+    state._videoMap = {};
     const ext = file.name.split('.').pop().toLowerCase();
 
     if (ext === 'kmz') {
@@ -1184,12 +1188,21 @@ async function loadKMZ(file, modeOverride) {
       if (!kmlEntry) throw new Error('Aucun fichier KML dans le KMZ');
       const kmlText = await kmlEntry.async('string');
       const photoPromises = [];
+      const audioPromises = [];
+      const videoPromises = [];
       zip.forEach((path, entry) => {
-        if (!entry.dir && /\.(jpg|jpeg|png|webp|gif)$/i.test(path)) {
+        if (entry.dir) return;
+        if (/\.(jpg|jpeg|png|webp|gif)$/i.test(path)) {
           photoPromises.push(entry.async('blob').then(blob => ({ name: path.split('/').pop(), blob })));
+        } else if (/\.mp3$/i.test(path)) {
+          audioPromises.push(entry.async('blob').then(blob => ({ name: path.split('/').pop(), blob })));
+        } else if (/\.mp4$/i.test(path)) {
+          videoPromises.push(entry.async('blob').then(blob => ({ name: path.split('/').pop(), blob })));
         }
       });
       (await Promise.all(photoPromises)).forEach(p => { state._photoMap[p.name] = p.blob; });
+      (await Promise.all(audioPromises)).forEach(p => { state._audioMap[p.name] = p.blob; });
+      (await Promise.all(videoPromises)).forEach(p => { state._videoMap[p.name] = p.blob; });
       parseKML(kmlText, mode);
     } else if (ext === 'kml') {
       const kmlText = await file.text();
@@ -1290,15 +1303,32 @@ function parseKML(txt, mode) {
     const desc = pm.querySelector('description')?.textContent || '';
     const imgMatch = desc.match(/src=["']?([^"'\s>]+\.(jpg|jpeg|png|webp|gif))/i);
     const photoName = imgMatch ? imgMatch[1].split('/').pop() : null;
+    // ExtendedData : chemins photo/audio/vidéo tels qu'écrits par GeoTour
+    // lui-même (exports session/Création/Déploiement) — permet de retrouver
+    // les médias au ré-import d'un fichier déjà exporté par l'application.
+    const extData = {};
+    pm.querySelectorAll('ExtendedData Data').forEach(d => {
+      const n = d.getAttribute('name');
+      const v = d.querySelector('value')?.textContent;
+      if (n && v) extData[n] = v;
+    });
+    const audioName = extData.audio ? extData.audio.split('/').pop() : null;
+    const videoName = extData.video ? extData.video.split('/').pop() : null;
+    const photoNameFinal = photoName || (extData.photo ? extData.photo.split('/').pop() : null);
     // Le commentaire est le texte de la description, débarrassé des balises
     // HTML éventuelles (ex. <img>, <br/>) qu'un autre outil (ex. photo2waypoint)
     // peut y avoir insérées pour référencer la photo associée.
     const comment = desc.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
     const wp = {
       id: nextId++, name, lat, lon, alt: alt||0, comment,
-      photoName: photoName||null,
-      photoBlob: (photoName && state._photoMap[photoName]) ? state._photoMap[photoName] : null,
-      photoOptimized: null, marker: null, _optimizedFname: null,
+      photoName: photoNameFinal||null,
+      photoBlob: (photoNameFinal && state._photoMap[photoNameFinal]) ? state._photoMap[photoNameFinal] : null,
+      photoOptimized: null,
+      audioName: audioName||null,
+      audioBlob: (audioName && state._audioMap[audioName]) ? state._audioMap[audioName] : null,
+      videoName: videoName||null,
+      videoBlob: (videoName && state._videoMap[videoName]) ? state._videoMap[videoName] : null,
+      marker: null, _optimizedFname: null,
     };
     state.waypoints.push(wp);
     newWps.push(wp);
@@ -1462,6 +1492,32 @@ function renderList() {
                </label>
                <input type="file" id="photo-input-${wp.id}" accept="image/*" style="display:none"
                  onchange="addPhotoToWp(${wp.id}, this.files[0])">`
+          }
+        </div>
+        <div id="audio-zone-${wp.id}" style="margin-top:6px;">
+          ${wp.audioBlob
+            ? `<div style="display:flex;gap:6px;align-items:center;">
+                 <span class="wp-add-photo-label creation-media-label has-file" style="flex:1;cursor:default;">🎵 ${esc(wp.audioName||'audio.mp3')}</span>
+                 <button class="btn-enlarge" style="border-color:var(--alert);color:#e07060;padding:8px 12px;" onclick="removeAudioFromWp(${wp.id})">✕</button>
+               </div>`
+            : `<label class="wp-add-photo-label creation-media-label" for="audio-input-${wp.id}">
+                 🎵 Associer un audio (mp3)
+               </label>
+               <input type="file" id="audio-input-${wp.id}" accept="audio/mpeg,.mp3" style="display:none"
+                 onchange="addAudioToWp(${wp.id}, this.files[0])">`
+          }
+        </div>
+        <div id="video-zone-${wp.id}" style="margin-top:6px;">
+          ${wp.videoBlob
+            ? `<div style="display:flex;gap:6px;align-items:center;">
+                 <span class="wp-add-photo-label creation-media-label has-file" style="flex:1;cursor:default;">🎬 ${esc(wp.videoName||'video.mp4')}</span>
+                 <button class="btn-enlarge" style="border-color:var(--alert);color:#e07060;padding:8px 12px;" onclick="removeVideoFromWp(${wp.id})">✕</button>
+               </div>`
+            : `<label class="wp-add-photo-label creation-media-label" for="video-input-${wp.id}">
+                 🎬 Associer une vidéo (mp4)
+               </label>
+               <input type="file" id="video-input-${wp.id}" accept="video/mp4,.mp4" style="display:none"
+                 onchange="addVideoToWp(${wp.id}, this.files[0])">`
           }
         </div>
         <div class="form-group">
@@ -1655,6 +1711,87 @@ function removePhotoFromWp(id) {
   if (icon) { icon.classList.remove('has-photo'); icon.textContent = '📍'; }
   saveSession();
   toast('Photo retirée', '');
+}
+
+function updateWpNameDisplay(id) {
+  const wp = state.waypoints.find(w => w.id === id);
+  if (!wp) return;
+  const el = document.querySelector(`#wpc-${id} .wp-name-display`);
+  if (el) el.innerHTML = esc(wp.name) + (wp.audioBlob ? ' 🎵' : '') + (wp.videoBlob ? ' 🎬' : '');
+}
+
+async function addAudioToWp(id, file) {
+  if (!file) return;
+  const wp = state.waypoints.find(w => w.id === id);
+  if (!wp) return;
+  wp.audioBlob = file;
+  wp.audioName = file.name;
+  const zone = document.getElementById('audio-zone-'+id);
+  if (zone) {
+    zone.innerHTML =
+      `<div style="display:flex;gap:6px;align-items:center;">
+         <span class="wp-add-photo-label creation-media-label has-file" style="flex:1;cursor:default;">🎵 ${esc(file.name)}</span>
+         <button class="btn-enlarge" style="border-color:var(--alert);color:#e07060;padding:8px 12px;" onclick="removeAudioFromWp(${id})">✕</button>
+       </div>`;
+  }
+  updateWpNameDisplay(id);
+  saveSession();
+  toast('Audio associé ✓', 'success');
+}
+
+function removeAudioFromWp(id) {
+  const wp = state.waypoints.find(w => w.id === id);
+  if (!wp) return;
+  wp.audioBlob = null; wp.audioName = null;
+  const zone = document.getElementById('audio-zone-'+id);
+  if (zone) {
+    zone.innerHTML =
+      `<label class="wp-add-photo-label creation-media-label" for="audio-input-${id}">
+         🎵 Associer un audio (mp3)
+       </label>
+       <input type="file" id="audio-input-${id}" accept="audio/mpeg,.mp3" style="display:none"
+         onchange="addAudioToWp(${id}, this.files[0])">`;
+  }
+  updateWpNameDisplay(id);
+  saveSession();
+  toast('Audio retiré', '');
+}
+
+async function addVideoToWp(id, file) {
+  if (!file) return;
+  const wp = state.waypoints.find(w => w.id === id);
+  if (!wp) return;
+  wp.videoBlob = file;
+  wp.videoName = file.name;
+  const zone = document.getElementById('video-zone-'+id);
+  if (zone) {
+    zone.innerHTML =
+      `<div style="display:flex;gap:6px;align-items:center;">
+         <span class="wp-add-photo-label creation-media-label has-file" style="flex:1;cursor:default;">🎬 ${esc(file.name)}</span>
+         <button class="btn-enlarge" style="border-color:var(--alert);color:#e07060;padding:8px 12px;" onclick="removeVideoFromWp(${id})">✕</button>
+       </div>`;
+  }
+  updateWpNameDisplay(id);
+  saveSession();
+  toast('Vidéo associée ✓', 'success');
+}
+
+function removeVideoFromWp(id) {
+  const wp = state.waypoints.find(w => w.id === id);
+  if (!wp) return;
+  wp.videoBlob = null; wp.videoName = null;
+  const zone = document.getElementById('video-zone-'+id);
+  if (zone) {
+    zone.innerHTML =
+      `<label class="wp-add-photo-label creation-media-label" for="video-input-${id}">
+         🎬 Associer une vidéo (mp4)
+       </label>
+       <input type="file" id="video-input-${id}" accept="video/mp4,.mp4" style="display:none"
+         onchange="addVideoToWp(${id}, this.files[0])">`;
+  }
+  updateWpNameDisplay(id);
+  saveSession();
+  toast('Vidéo retirée', '');
 }
 
 // ── SUPPRESSION WAYPOINT ─────────────────────────────
@@ -3640,10 +3777,10 @@ const SESSION_KEY = 'randonneur8_session';
 
 // Sauvegarder après chaque modification significative
 async function saveSession() {
-  if (!state.rawFileName) return;
+  if (!state.waypoints.length && !state.trackCoords.length) return;
   try {
     const data = {
-      rawFileName: state.rawFileName,
+      rawFileName: state.rawFileName || '',
       mapLayer: state.mapLayer,
       trackCoords: state.trackCoords,
       waypoints: state.waypoints.map(wp => ({
@@ -3670,10 +3807,10 @@ async function loadSession() {
     const raw = localStorage.getItem(SESSION_KEY);
     if (!raw) return;
     const data = JSON.parse(raw);
-    if (!data.rawFileName) return;
+    if (!data.waypoints || !data.waypoints.length) return;
 
     // Restaurer l'état de base (sans blobs photo — l'utilisateur devra recharger le KMZ pour les photos)
-    state.rawFileName = data.rawFileName;
+    state.rawFileName = data.rawFileName || '';
     state.mapLayer    = data.mapLayer || 'osm';
     state.trackCoords = data.trackCoords || [];
     state.waypoints   = (data.waypoints || []).map(wp => ({
@@ -3687,7 +3824,7 @@ async function loadSession() {
       if (wp.hasVideo) { const b=await idbGet('video_'+wp.id); if(b){wp.videoBlob=b;} }
     }
 
-    document.getElementById('file-name-display').textContent = data.rawFileName + ' (session restaurée)';
+    document.getElementById('file-name-display').textContent = (data.rawFileName || 'Session') + ' (session restaurée)';
 
     // Restaurer la couche de carte
     if (layers[state.mapLayer]) {

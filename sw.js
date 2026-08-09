@@ -1,4 +1,4 @@
-const VERSION = 'geotour-v7';
+const VERSION = 'geotour-v8';
 const SCOPE   = '/geotour/';
 
 self.addEventListener('install', () => self.skipWaiting());
