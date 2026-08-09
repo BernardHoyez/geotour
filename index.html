@@ -742,7 +742,7 @@ html, body { height: 100%; overflow: hidden; font-family: 'Outfit', sans-serif; 
         <div class="char-count" id="creation-nc">0/40</div>
 
         <label class="form-label" style="margin-top:10px;">Commentaire enrichi</label>
-        <div class="rte-toolbar">
+        <div class="rte-toolbar" data-target="creation-commentaire">
           <button type="button" data-cmd="bold" title="Gras"><b>G</b></button>
           <button type="button" data-cmd="italic" title="Italique"><i>I</i></button>
           <button type="button" data-cmd="underline" title="Souligné"><u>S</u></button>
@@ -980,7 +980,15 @@ html, body { height: 100%; overflow: hidden; font-family: 'Outfit', sans-serif; 
     </div>
     <div class="form-group">
       <label class="form-label">Commentaire</label>
-      <textarea class="form-input" id="wp-add-comment" rows="2" maxlength="600" placeholder="Description…"></textarea>
+      <div class="rte-toolbar" data-target="wp-add-comment">
+        <button type="button" data-cmd="bold" title="Gras"><b>G</b></button>
+        <button type="button" data-cmd="italic" title="Italique"><i>I</i></button>
+        <button type="button" data-cmd="underline" title="Souligné"><u>S</u></button>
+        <button type="button" data-cmd="insertUnorderedList" title="Liste">•≡</button>
+        <button type="button" data-cmd="createLink" title="Insérer un lien">🔗</button>
+        <button type="button" data-cmd="removeFormat" title="Effacer la mise en forme">⨯</button>
+      </div>
+      <div class="form-input rte-editable" id="wp-add-comment" contenteditable="true" data-placeholder="Description…" style="min-height:56px;max-height:120px;"></div>
     </div>
     <div class="form-group">
       <label class="wp-add-photo-label creation-media-label" for="wp-add-audio-input" id="wp-add-audio-label">🎵 Ajouter un audio (mp3)</label>
@@ -1865,17 +1873,19 @@ function gtSanitizeRichHTML(html) {
   return tmp.innerHTML.trim();
 }
 
-document.querySelectorAll('.rte-toolbar button').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const editor = document.getElementById('creation-commentaire');
-    editor.focus();
-    const cmd = btn.dataset.cmd;
-    if (cmd === 'createLink') {
-      const url = prompt('URL du lien :', 'https://');
-      if (url) document.execCommand(cmd, false, url);
-    } else {
-      document.execCommand(cmd, false, null);
-    }
+document.querySelectorAll('.rte-toolbar').forEach(toolbar => {
+  toolbar.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const editor = document.getElementById(toolbar.dataset.target);
+      editor.focus();
+      const cmd = btn.dataset.cmd;
+      if (cmd === 'createLink') {
+        const url = prompt('URL du lien :', 'https://');
+        if (url) document.execCommand(cmd, false, url);
+      } else {
+        document.execCommand(cmd, false, null);
+      }
+    });
   });
 });
 
@@ -2003,7 +2013,7 @@ async function ajouterWaypointCreation() {
   // aide IA, export KML) : on récupère donc le texte brut de l'éditeur
   // enrichi, la mise en forme n'étant conservée que dans l'export KMZ
   // autonome ci-dessous.
-  document.getElementById('wp-add-comment').value = document.getElementById('creation-commentaire').textContent;
+  document.getElementById('wp-add-comment').textContent = document.getElementById('creation-commentaire').textContent;
   await confirmAddWp();
   reinitialiserFormulaireCreation();
 }
@@ -2142,7 +2152,7 @@ map.on('click', function(e) {
   _addWpPending.videoFile = null;
   document.getElementById('wp-add-name').value    = '';
   document.getElementById('wp-add-nc').textContent = '0/40';
-  document.getElementById('wp-add-comment').value  = '';
+  document.getElementById('wp-add-comment').innerHTML  = '';
   document.getElementById('wp-add-thumb').style.display = 'none';
   document.getElementById('wp-add-photo-zone').textContent = '📷 Ajouter une photo (optionnel)';
   document.getElementById('wp-add-audio-input').value = '';
@@ -2200,7 +2210,7 @@ function onAddWpVideo(file) {
 async function confirmAddWp() {
   const name    = document.getElementById('wp-add-name').value.trim() ||
                   'Waypoint ' + (state.waypoints.length + 1);
-  const comment = document.getElementById('wp-add-comment').value.trim();
+  const comment = document.getElementById('wp-add-comment').textContent.trim();
   const { lat, lon, alt } = _addWpPending;
   let photoBlob = null, photoName = null;
   if (_addWpPending.photoFile) {

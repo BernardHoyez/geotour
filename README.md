@@ -52,7 +52,9 @@ Puis au choix :
 - **➕ Ajouter à la liste** : intègre le waypoint (avec son audio/vidéo) à la session en cours (onglet Édition) ; le commentaire est alors conservé en texte brut, pour rester compatible avec le reste de l'application (zone de saisie de la liste, aide IA, export KML principal).
 - **💾 Enregistrer en KMZ** : exporte ce seul waypoint (photo + commentaire enrichi + audio + vidéo) en fichier KMZ autonome, indépendamment de son ajout ou non à la liste. Le commentaire garde alors sa mise en forme complète.
 
-**Cas particulier du mode 🗺️ Carte** : ce mode bascule directement sur la grande carte de l'onglet Édition (mode « clic pour placer », sans passer par le bloc de vérification décrit ci-dessus) et ouvre la fenêtre **Nouveau waypoint** au clic — celle-ci propose aussi nom, commentaire, photo, audio et vidéo, mais pas la barre d'outils de mise en forme du commentaire.
+**Cas particulier du mode 🗺️ Carte** : ce mode bascule directement sur la grande carte de l'onglet Édition (mode « clic pour placer », sans passer par le bloc de vérification décrit ci-dessus) et ouvre la fenêtre **Nouveau waypoint** au clic — celle-ci propose les mêmes champs (nom, commentaire enrichi avec sa barre d'outils, photo, audio, vidéo).
+
+Dans les deux cas (bloc de vérification ou fenêtre Nouveau waypoint), la règle est la même : la mise en forme du commentaire (gras, italique, liste, lien…) n'est conservée telle quelle que dans l'export KMZ autonome du volet Création (« 💾 Enregistrer en KMZ », disponible uniquement depuis le bloc de vérification). Dès qu'un waypoint est ajouté à la liste principale — que ce soit via « ➕ Ajouter à la liste » ou via la fenêtre Nouveau waypoint —, son commentaire redevient du texte brut, pour rester compatible avec le reste de l'application (édition dans la liste, aide IA, export KML principal, session KMZ).
 
 ---
 
