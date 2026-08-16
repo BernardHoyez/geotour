@@ -48,6 +48,7 @@ Dans les trois cas, un **bloc de vérification** s'affiche ensuite : mini-carte 
 - **Nom** du waypoint.
 - **Commentaire enrichi** : petite barre d'outils (gras, italique, souligné, liste, lien) au-dessus d'une zone de texte éditable.
 - **Audio (mp3)** et **Vidéo (mp4)**, tous deux optionnels.
+- **Vidéo YouTube en ligne**, optionnelle : coller un lien (toutes formes courantes acceptées — `watch?v=`, `youtu.be/`, `shorts/`) ou un ID nu. Contrairement à l'audio/vidéo embarqués, elle n'est pas téléchargée : seul l'identifiant est stocké, et une connexion réseau est nécessaire pour la lire (y compris dans un diaporama exporté « hors-ligne »).
 
 Puis au choix :
 - **➕ Ajouter à la liste** : intègre le waypoint (avec son audio/vidéo) à la session en cours (onglet Édition) ; le commentaire est alors conservé en texte brut, pour rester compatible avec le reste de l'application (zone de saisie de la liste, aide IA, export KML principal).
@@ -79,7 +80,7 @@ Générer un fond de carte téléchargeable pour un usage hors-ligne (fonctionna
 
 Diaporama guidé des waypoints, dans l'ordre de la liste de l'onglet Édition.
 
-- **▶ Lancer la visite** : dans l'application elle-même, avec narration vocale (TTS) du nom et du commentaire de chaque waypoint (bouton 🔊 Voix TTS pour choisir la voix), et lecture de l'**audio**/la **vidéo** associés au waypoint (si présents), affichés sous le commentaire.
+- **▶ Lancer la visite** : dans l'application elle-même, avec narration vocale (TTS) du nom et du commentaire de chaque waypoint (bouton 🔊 Voix TTS pour choisir la voix), et lecture de l'**audio**/la **vidéo**/la **vidéo YouTube** associés au waypoint (si présents), affichés sous le commentaire.
 - **⬇ Exporter HTML** : génère un **fichier HTML autonome**, à conserver sur le smartphone et à ouvrir sans avoir besoin de l'application — utile pour partager la visite ou l'emporter sur le terrain.
   - **📴 Inclure le fond MBtiles pour un usage hors-ligne** (case à cocher, active seulement si un MBtiles est chargé dans Édition) : embarque directement dans le fichier HTML exporté le fond de carte MBtiles, sql.js et Leaflet — **le fichier fonctionne alors intégralement sans réseau**, y compris son fond de carte. Sans cette case, le diaporama exporté utilise le fond IGN en ligne (nécessite du réseau à l'ouverture).
   - Le fichier exporté affiche aussi un **marqueur GPS pulsant** suivant la position réelle de l'utilisateur (si le navigateur l'autorise), pour comparer sur le terrain sa position avec celle des waypoints.
@@ -102,13 +103,16 @@ GeoTour est reparti directement du code source réel de **randonneur8** (et non 
 - l'onglet **Création** (apport de photo2waypoint : lecture EXIF, randonneur8 ne le faisait pas nativement) ;
 - l'onglet **Générer MBtiles** (apport d'ign2mbt) ;
 - la case à cocher d'export hors-ligne du diaporama, le marqueur GPS, et le réordonnancement des waypoints par glisser-déposer, ajoutés au fil des retours d'usage ;
-- un sélecteur explicite à 3 modes de localisation dans le volet Création (Photo EXIF / Carte / Coordonnées), un commentaire enrichi (gras/italique/souligné/liste/lien), et des pièces jointes audio/vidéo par waypoint — propagées jusqu'aux exports KMZ, à la session, au diaporama Visite et au paquet Déploiement — fonctionnalités inspirées de **kmzmanager**, une autre PWA de création/visualisation de KMZ.
+- un sélecteur explicite à 3 modes de localisation dans le volet Création (Photo EXIF / Carte / Coordonnées), un commentaire enrichi (gras/italique/souligné/liste/lien), et des pièces jointes audio/vidéo par waypoint — propagées jusqu'aux exports KMZ, à la session, au diaporama Visite et au paquet Déploiement — fonctionnalités inspirées de **kmzmanager**, une autre PWA de création/visualisation de KMZ ;
+- une **vidéo YouTube en ligne** optionnelle par waypoint (lien ou ID, reconnu automatiquement), propagée aux mêmes endroits que l'audio/vidéo embarqués (Création, liste Édition, popups carte, diaporama Visite et son export HTML, paquet Déploiement), à la différence près qu'elle reste hébergée en ligne et nécessite donc toujours une connexion réseau pour être lue.
 
 Chacun de ces ajouts a d'abord été testé sur une copie du projet (temporairement nommée *geotour2*) avant d'être reporté ici, pour ne pas risquer de régression sur la version en cours d'usage.
 
 ### Limites connues
 
 - Le fond MBtiles doit être généré à l'avance (réseau requis) ; son usage en Édition et dans le diaporama exporté est lui hors-ligne.
+- La **vidéo YouTube en ligne** nécessite toujours une connexion réseau pour être lue, y compris dans un diaporama exporté avec l'option « fond hors-ligne » cochée (seul le fond de carte est alors embarqué, pas la vidéo YouTube elle-même). Préférer la vidéo mp4 embarquée pour un usage strictement hors-ligne.
+- La **vidéo YouTube en ligne** s'affiche sous forme de **vignette cliquable** (image + bouton ▶) dans les popups de carte (Édition et Déploiement), qui ouvre la vidéo dans un nouvel onglet YouTube plutôt que de l'intégrer sur place. Ce choix fait suite à une erreur 153 (« erreur de configuration du lecteur ») rencontrée de façon persistante avec l'intégration en iframe dans ce contexte précis, malgré plusieurs correctifs standards (`referrerpolicy`, domaine `youtube-nocookie.com`, chargement différé, meta referrer, attributs width/height) : aucun n'a suffi à la faire disparaître, alors que la même vidéo s'intègre sans problème dans l'onglet Visite. La vignette cliquable contourne le problème en n'utilisant aucune iframe. Dans l'onglet Visite et son export HTML, la vidéo continue d'être intégrée directement (lecture sur place), car cela fonctionne correctement à cet endroit.
 - L'assistant IA de génération de commentaires (hérité de randonneur8) nécessite une connexion réseau et une clé d'API du service concerné.
 - Le commentaire enrichi (gras/italique/souligné/liste/lien) n'est conservé tel quel que dans l'export KMZ autonome du volet Création (« 💾 Enregistrer en KMZ ») ; une fois le waypoint ajouté à la liste principale (« ➕ Ajouter à la liste »), le commentaire redevient du texte brut pour rester compatible avec le reste de l'application (édition dans la liste, aide IA, export KML principal, session KMZ).
 - Testé principalement en logique (imports/exports, calculs, absence de collisions de code) ; les tests de terrain (GPS, tactile, autonomie) restent à mener.
